@@ -1,0 +1,38 @@
+{
+  "name": "notion-rsc",
+  "version": "0.0.4",
+  "description": "Turns Notion pages into React Server Components",
+  "main": "app/index.tsx",
+  "scripts": {
+    "lint": "next lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/borisghidaglia/notion-rsc.git"
+  },
+  "keywords": [
+    "notion",
+    "rsc",
+    "nextjs"
+  ],
+  "author": "Boris Ghidaglia",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/borisghidaglia/notion-rsc/issues"
+  },
+  "homepage": "https://github.com/borisghidaglia/notion-rsc#readme",
+  "dependencies": {
+    "@notionhq/client": "^2.2.14",
+    "next": "^14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.13",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "eslint": "8.56.0",
+    "eslint-config-next": "14.1.0"
+  }
+}
