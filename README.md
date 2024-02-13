@@ -1,6 +1,6 @@
 # `notion-rsc`
 
-Your [Next.js](https://nextjs.org/) blog with [Notion](https://www.notion.so/) as a [CMS](https://en.wikipedia.org/wiki/Content_management_system), made easy. And even better with [tailwindcss](https://tailwindcss.com/).
+Build your [Next.js](https://nextjs.org/) blog using [Notion](https://www.notion.so/) as a [CMS](https://en.wikipedia.org/wiki/Content_management_system) with only two server components. It is even better with [tailwindcss](https://tailwindcss.com/).
 
 > [!WARNING]  
 > `notion-rsc` is not affiliated with nor endorsed by **Notion Labs, Inc.**
