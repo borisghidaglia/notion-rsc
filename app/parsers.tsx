@@ -88,6 +88,7 @@ export const defaultNotionBlockParser = async (
       </li>
     );
   if (isType(block, "quote"))
+  if (isType(block, "bookmark")) return <Bookmark url={block.bookmark.url} />;
     return (
       <blockquote key={block.id}>
         {parseRichTextArray(block.quote.rich_text)}
