@@ -1,16 +1,19 @@
-import { iteratePaginatedAPI, isFullBlock, Client } from "@notionhq/client";
+import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
 import {
   BlockObjectResponse,
   PageObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
+import { Code } from "bright";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { Post, isType } from ".";
 
+Code.theme = "github-dark";
+
 export const defaultPostParser = async (
   client: Client,
-  page: PageObjectResponse
+  page: PageObjectResponse,
 ): Promise<Post> => ({
   content: await defaultNotionPageParser(client, page.id),
   slug: (page.properties.slug as any).title[0].plain_text,
@@ -19,15 +22,9 @@ export const defaultPostParser = async (
   createdAt: page.created_time.split("T")[0],
 });
 
-type X = {
-  [K in BlockObjectResponse extends { children: any }
-    ? BlockObjectResponse["type"]
-    : never]: string;
-};
-
 export const defaultNotionPageParser = async (
   client: Client,
-  blockId: string
+  blockId: string,
 ) => {
   const pageContent: React.ReactNode[] = [];
   for await (const block of iteratePaginatedAPI(client.blocks.children.list, {
@@ -45,7 +42,7 @@ export const defaultNotionPageParser = async (
           <ul>{children}</ul>
         ) : (
           children
-        )
+        ),
       );
     }
   }
@@ -54,57 +51,39 @@ export const defaultNotionPageParser = async (
 
 export const defaultNotionBlockParser = async (
   block: BlockObjectResponse,
-  notionPublicFolder: string = `${process.cwd()}/public/notion-files`
+  notionPublicFolder: string = `${process.cwd()}/public/notion-files`,
 ) => {
   if (isType(block, "heading_1")) {
     const node = parseRichTextArray(block.heading_1.rich_text);
-    return (
-      <h1 key={block.id} id={node.toString()}>
-        {node}
-      </h1>
-    );
+    return <h1>{node}</h1>;
   }
   if (isType(block, "heading_2"))
-    return (
-      <h2 key={block.id}>{parseRichTextArray(block.heading_2.rich_text)}</h2>
-    );
+    return <h2>{parseRichTextArray(block.heading_2.rich_text)}</h2>;
   if (isType(block, "heading_3"))
-    return (
-      <h3 key={block.id}>{parseRichTextArray(block.heading_3.rich_text)}</h3>
-    );
+    return <h3>{parseRichTextArray(block.heading_3.rich_text)}</h3>;
   if (isType(block, "paragraph")) {
     return <p>{parseRichTextArray(block.paragraph.rich_text)}</p>;
   }
   if (isType(block, "numbered_list_item"))
-    return (
-      <li key={block.id}>
-        {parseRichTextArray(block.numbered_list_item.rich_text)}
-      </li>
-    );
+    return <li>{parseRichTextArray(block.numbered_list_item.rich_text)}</li>;
   if (isType(block, "bulleted_list_item"))
-    return (
-      <li key={block.id}>
-        {parseRichTextArray(block.bulleted_list_item.rich_text)}
-      </li>
-    );
+    return <li>{parseRichTextArray(block.bulleted_list_item.rich_text)}</li>;
   if (isType(block, "quote"))
+    return <blockquote>{parseRichTextArray(block.quote.rich_text)}</blockquote>;
+  if (isType(block, "code")) {
     return (
-      <blockquote key={block.id}>
-        {parseRichTextArray(block.quote.rich_text)}
-      </blockquote>
+      // Hack: if language is not supported by Notion, you can set it by writing it in the caption
+      <Code lang={block.code.caption[0]?.plain_text ?? block.code.language}>
+        {parseRichTextArray(block.code.rich_text).toString()}
+      </Code>
     );
-  if (isType(block, "code"))
-    return (
-      <pre key={block.id}>
-        <code>{parseRichTextArray(block.code.rich_text)}</code>
-      </pre>
-    );
+  }
   // if (isType(block, "table"))
-  //   return <table key={block.id}>{block.table.table_width}</table>;
+  //   return <table>{block.table.table_width}</table>;
   if (isType(block, "divider")) return <hr />;
   if (isType(block, "image")) {
     if (isType(block.image, "external"))
-      return <img key={block.id} src={block.image.external.url} />;
+      return <img src={block.image.external.url} />;
     if (isType(block.image, "file")) {
       const url = new URL(block.image.file.url);
       const pathName = url.pathname;
@@ -114,17 +93,13 @@ export const defaultNotionBlockParser = async (
       // Check if remote and local file are the same.
       // Here we might miss a new file to download just because they have the same name
       if (existsSync(localPath))
-        return (
-          <img key={block.id} src={join("/notion-files", fileName)} alt="" />
-        );
+        return <img src={join("/notion-files", fileName)} alt="" />;
       const res = await fetch(block.image.file.url);
       if (!existsSync(notionPublicFolder)) {
         mkdirSync(notionPublicFolder, { recursive: true });
       }
       writeFileSync(localPath, new Uint8Array(await res.arrayBuffer()));
-      return (
-        <img key={block.id} src={join("/notion-files", fileName)} alt="" />
-      );
+      return <img src={join("/notion-files", fileName)} alt="" />;
     }
   }
 };
@@ -154,3 +129,4 @@ const parseRichText = (rt: RichTextItemResponse) => {
     node
   );
 };
+
