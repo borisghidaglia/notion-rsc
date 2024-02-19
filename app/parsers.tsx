@@ -7,8 +7,8 @@ import {
 import { Code } from "bright";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
-import { Post, isType } from ".";
 import { Fragment } from "react";
+import { Post } from ".";
 
 Code.theme = "github-dark";
 
@@ -16,19 +16,29 @@ export const defaultPostParser = async (
   client: Client,
   page: PageObjectResponse
 ): Promise<Post> => ({
-  content: await defaultNotionPageParser(client, page.id),
+  content: await defaultNotionBlocksParser(client, page.id),
   slug: (page.properties.slug as any).title[0].plain_text,
   title: (page.properties.title as any).rich_text[0].plain_text,
   published: (page.properties.published as any).checkbox,
   createdAt: page.created_time.split("T")[0],
 });
 
-const defaultGetNotionBlocksFromPage = async (
+export const defaultNotionBlocksParser = async (
   client: Client,
-  blockId: string
+  blockId: string,
+  parser: (block: Block) => React.ReactNode = defaultNotionBlockParser
 ) => {
-  const blocks: Block[] = [];
-  let groupBlock: Block[] = [];
+  const parsedBlocks: React.ReactNode[] = [];
+  const typesToGroup = ["numbered_list_item", "bulleted_list_item"] as const;
+  type GroupedBlock = Extract<
+    BlockWithChildren,
+    { type: (typeof typesToGroup)[number] }
+  >;
+  const isGroupedBlock = (block: BlockWithChildren): block is GroupedBlock =>
+    typesToGroup.includes(block.type as GroupedBlock["type"]);
+
+  let groupBlock: GroupedBlock[] = [];
+  let lastTypeSeen: BlockObjectResponse["type"] | undefined = undefined;
 
   for await (const block of iteratePaginatedAPI(client.blocks.children.list, {
     block_id: blockId,
@@ -38,110 +48,108 @@ const defaultGetNotionBlocksFromPage = async (
     const blockWithChildren = {
       ...block,
       children: block.has_children
-        ? await defaultGetNotionBlocksFromPage(client, block.id)
+        ? await defaultNotionBlocksParser(client, block.id)
         : undefined,
     };
 
-    if (blockWithChildren.type === "numbered_list_item") {
+    if (
+      (!lastTypeSeen || lastTypeSeen === blockWithChildren.type) &&
+      isGroupedBlock(blockWithChildren)
+    ) {
       groupBlock.push(blockWithChildren);
+      lastTypeSeen = blockWithChildren.type;
       continue;
     }
 
     if (groupBlock.length > 0) {
-      blocks.push({
-        groupType: "numbered_list",
-        groupedBlocks: groupBlock,
-      });
-      groupBlock = [];
-      continue;
-    }
-
-    blocks.push(blockWithChildren);
-  }
-  return blocks;
-};
-
-export const defaultNotionPageParser = async (
-  client: Client,
-  blockId: string
-) => {
-  const pageContent: React.ReactNode[] = [];
-  for await (const block of iteratePaginatedAPI(client.blocks.children.list, {
-    block_id: blockId,
-  })) {
-    if (!isFullBlock(block)) continue;
-    const reactNode = await defaultNotionBlockParser(block);
-    if (!reactNode) continue;
-    pageContent.push(reactNode);
-    if (block.has_children) {
-      const children = await defaultNotionPageParser(client, block.id);
-      pageContent.push(
-        isType(block, "bulleted_list_item") ||
-          isType(block, "numbered_list_item") ? (
-          <ul>{children}</ul>
-        ) : (
-          children
-        )
+      parsedBlocks.push(
+        parser({
+          groupType: groupBlock[0].type,
+          groupedBlocks: groupBlock,
+        })
       );
+      groupBlock = [];
+      lastTypeSeen = undefined;
     }
+
+    parsedBlocks.push(parser(blockWithChildren));
   }
-  return pageContent;
+  return parsedBlocks;
 };
 
 export const defaultNotionBlockParser = async (
-  block: BlockObjectResponse,
+  block: Block,
   notionPublicFolder: string = `${process.cwd()}/public/notion-files`
 ) => {
-  if (isType(block, "heading_1")) {
-    const node = parseRichTextArray(block.heading_1.rich_text);
-    return <h1 key={block.id}>{node}</h1>;
+  if ("groupType" in block) {
+    if (block.groupType === "numbered_list_item")
+      return (
+        <ol>{block.groupedBlocks.map((b) => defaultNotionBlockParser(b))}</ol>
+      );
+    if (block.groupType === "bulleted_list_item")
+      return (
+        <ul>{block.groupedBlocks.map((b) => defaultNotionBlockParser(b))}</ul>
+      );
+    // for now there is no other groupType
+    return <div style={{ backgroundColor: "red" }}>{block.groupType}</div>;
   }
-  if (isType(block, "heading_2"))
+
+  if (block.type === "heading_1")
+    return (
+      <h1 key={block.id}>{parseRichTextArray(block.heading_1.rich_text)}</h1>
+    );
+  if (block.type === "heading_2")
     return (
       <h2 key={block.id}>{parseRichTextArray(block.heading_2.rich_text)}</h2>
     );
-  if (isType(block, "heading_3"))
+  if (block.type === "heading_3")
     return (
       <h3 key={block.id}>{parseRichTextArray(block.heading_3.rich_text)}</h3>
     );
-  if (isType(block, "paragraph")) {
+  if (block.type === "paragraph") {
     return (
-      <p key={block.id}>{parseRichTextArray(block.paragraph.rich_text)}</p>
+      <p key={block.id}>
+        {parseRichTextArray(block.paragraph.rich_text)}
+        {block.children}
+      </p>
     );
   }
-  if (isType(block, "numbered_list_item"))
+  if (block.type === "numbered_list_item")
     return (
       <li key={block.id}>
         {parseRichTextArray(block.numbered_list_item.rich_text)}
+        {block.children}
       </li>
     );
-  if (isType(block, "bulleted_list_item"))
+  if (block.type === "bulleted_list_item")
     return (
       <li key={block.id}>
         {parseRichTextArray(block.bulleted_list_item.rich_text)}
+        {block.children}
       </li>
     );
-  if (isType(block, "quote"))
+  if (block.type === "quote")
     return (
       <blockquote key={block.id}>
         {parseRichTextArray(block.quote.rich_text)}
+        {block.children}
       </blockquote>
     );
-  if (isType(block, "code")) {
+  if (block.type === "code") {
     return (
       // Hack: if language is not supported by Notion, you can set it by writing it in the caption
+      // Note: for now we are ignoring rich text features on code blocks
       <Code lang={block.code.caption[0]?.plain_text ?? block.code.language}>
-        {parseRichTextArray(block.code.rich_text).toString()}
+        {block.code.rich_text.map((rt) => rt.plain_text).toString()}
       </Code>
     );
   }
-  // if (isType(block, "table"))
-  //   return <table>{block.table.table_width}</table>;
-  if (isType(block, "divider")) return <hr key={block.id} />;
-  if (isType(block, "image")) {
-    if (isType(block.image, "external"))
+  if (block.type === "table") return <table>{block.table.table_width}</table>;
+  if (block.type === "divider") return <hr key={block.id} />;
+  if (block.type === "image") {
+    if (block.image.type === "external")
       return <img key={block.id} src={block.image.external.url} />;
-    if (isType(block.image, "file")) {
+    if (block.image.type === "file") {
       const url = new URL(block.image.file.url);
       const pathName = url.pathname;
       const fileName = pathName.split("/")[pathName.split("/").length - 1];
@@ -163,13 +171,20 @@ export const defaultNotionBlockParser = async (
       );
     }
   }
+  return (
+    <div style={{ backgroundColor: "darkred", margin: "10px 0px 10px 0px" }}>
+      {block.type}
+    </div>
+  );
 };
 
 const parseRichTextArray = (rta: RichTextItemResponse[]) =>
-  rta.map((rt) => <Fragment key={rt.href}>{parseRichText(rt)}</Fragment>);
+  rta.map((rt) => (
+    <Fragment key={crypto.randomUUID()}>{parseRichText(rt)}</Fragment>
+  ));
 
 const parseRichText = (rt: RichTextItemResponse) => {
-  if (!isType(rt, "text")) return rt.plain_text;
+  if (rt.type !== "text") return rt.plain_text;
   let node: React.ReactNode = rt.plain_text;
   // regular text annotations
   if (rt.annotations.bold) node = <b>{node}</b>;
@@ -192,7 +207,12 @@ const parseRichText = (rt: RichTextItemResponse) => {
 };
 
 type Block =
-  | (BlockObjectResponse & {
-      children?: Block[];
-    })
-  | { groupType: "numbered_list"; groupedBlocks: Block[] };
+  | BlockWithChildren
+  | {
+      groupType: "numbered_list_item" | "bulleted_list_item";
+      groupedBlocks: BlockWithChildren[];
+    };
+
+type BlockWithChildren = BlockObjectResponse & {
+  children?: React.ReactNode[];
+};

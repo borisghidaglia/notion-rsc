@@ -9,9 +9,9 @@ import {
 
 import { defaultPostQueryFilter, defaultPostsQueryFilter } from "./filters";
 import {
-  defaultPostParser,
   defaultNotionBlockParser,
-  defaultNotionPageParser,
+  defaultNotionBlocksParser,
+  defaultPostParser,
 } from "./parsers";
 
 export function createNotionComponents<T extends object = Post>(
@@ -127,12 +127,8 @@ export type Post = {
   createdAt: string;
 };
 
-export const isType = <T extends { type?: string }, U extends T["type"]>(
-  obj: T,
-  type: U
-): obj is Extract<T, { type: U }> => obj?.type === type;
-
 export {
-  defaultNotionPageParser as parseNotionPage,
   defaultNotionBlockParser as parseNotionBlock,
+  defaultNotionBlocksParser as parseNotionBlocks,
+  defaultPostParser as parseNotionPost,
 };
