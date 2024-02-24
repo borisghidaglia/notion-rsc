@@ -1,3 +1,7 @@
+import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { join } from "path";
+import { Fragment, Suspense } from "react";
+
 import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
 import {
   BlockObjectResponse,
@@ -5,12 +9,33 @@ import {
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 import { Code } from "bright";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { join } from "path";
-import { Fragment } from "react";
 import { Post } from ".";
 
 Code.theme = "github-dark";
+
+const LocalImage = async ({
+  url,
+  notionPublicFolder = `${process.cwd()}/public/notion-files`,
+}: {
+  url: string;
+  notionPublicFolder?: string;
+}) => {
+  const _url = new URL(url);
+  const pathName = _url.pathname;
+  const fileName = pathName.split("/")[pathName.split("/").length - 1];
+  const localPath = join(notionPublicFolder, fileName);
+  // TODO
+  // Check if remote and local file are the same.
+  // Here we might miss a new file to download just because they have the same name
+  if (existsSync(localPath))
+    return <img key={url} src={join("/notion-files", fileName)} alt="" />;
+  const res = await fetch(url);
+  if (!existsSync(notionPublicFolder)) {
+    mkdirSync(notionPublicFolder, { recursive: true });
+  }
+  writeFileSync(localPath, new Uint8Array(await res.arrayBuffer()));
+  return <img key={url} src={join("/notion-files", fileName)} alt="" />;
+};
 
 export const defaultPostParser = async (
   client: Client,
@@ -74,13 +99,19 @@ export const defaultNotionBlocksParser = async (
 
     parsedBlocks.push(parser(blockWithChildren));
   }
+
+  if (groupBlock.length > 0) {
+    parsedBlocks.push(
+      parser({
+        groupType: groupBlock[0].type,
+        groupedBlocks: groupBlock,
+      })
+    );
+  }
   return parsedBlocks;
 };
 
-export const defaultNotionBlockParser = async (
-  block: Block,
-  notionPublicFolder: string = `${process.cwd()}/public/notion-files`
-) => {
+export const defaultNotionBlockParser = (block: Block) => {
   if ("groupType" in block) {
     if (block.groupType === "numbered_list_item")
       return (
@@ -90,7 +121,6 @@ export const defaultNotionBlockParser = async (
       return (
         <ul>{block.groupedBlocks.map((b) => defaultNotionBlockParser(b))}</ul>
       );
-    // for now there is no other groupType
     return <div style={{ backgroundColor: "red" }}>{block.groupType}</div>;
   }
 
@@ -144,31 +174,31 @@ export const defaultNotionBlockParser = async (
       </Code>
     );
   }
-  if (block.type === "table") return <table>{block.table.table_width}</table>;
+  if (block.type === "table") {
+    return (
+      <table>
+        <tbody>{block.children}</tbody>
+      </table>
+    );
+  }
+  if (block.type === "table_row") {
+    return (
+      <tr>
+        {block.table_row.cells.map((cell) => (
+          <td key={crypto.randomUUID()}>{parseRichTextArray(cell)}</td>
+        ))}
+      </tr>
+    );
+  }
   if (block.type === "divider") return <hr key={block.id} />;
+  if (block.type === "child_page") {
+    return <p>{block.child_page.title}</p>;
+  }
   if (block.type === "image") {
     if (block.image.type === "external")
       return <img key={block.id} src={block.image.external.url} />;
     if (block.image.type === "file") {
-      const url = new URL(block.image.file.url);
-      const pathName = url.pathname;
-      const fileName = pathName.split("/")[pathName.split("/").length - 1];
-      const localPath = join(notionPublicFolder, fileName);
-      // TODO
-      // Check if remote and local file are the same.
-      // Here we might miss a new file to download just because they have the same name
-      if (existsSync(localPath))
-        return (
-          <img key={block.id} src={join("/notion-files", fileName)} alt="" />
-        );
-      const res = await fetch(block.image.file.url);
-      if (!existsSync(notionPublicFolder)) {
-        mkdirSync(notionPublicFolder, { recursive: true });
-      }
-      writeFileSync(localPath, new Uint8Array(await res.arrayBuffer()));
-      return (
-        <img key={block.id} src={join("/notion-files", fileName)} alt="" />
-      );
+      return <LocalImage url={block.image.file.url} />;
     }
   }
   return (

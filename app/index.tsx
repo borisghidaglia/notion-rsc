@@ -78,29 +78,6 @@ function _createNotionComponents<T extends object>(
     return parsePost(notionClient, page);
   }
 
-  async function NotionPost({
-    id,
-    renderPost,
-  }: {
-    id: string;
-    renderPost: (post: T) => React.ReactNode;
-  }) {
-    const post = await getPost(id);
-    // The reason why we are using fragments here
-    // https://github.com/vercel/next.js/issues/49280
-    // Problem: It returns JSX.Element instead of React.ReactNode
-    return <>{renderPost(post)}</>;
-  }
-
-  async function NotionPosts({
-    renderPost,
-  }: {
-    renderPost: (post: T) => React.ReactNode;
-  }) {
-    const posts = await getPosts();
-    return posts.map((post) => renderPost(post));
-  }
-
   return {
     NotionPost: ({
       id,
@@ -108,15 +85,43 @@ function _createNotionComponents<T extends object>(
     }: {
       id: string;
       renderPost: (post: T) => React.ReactNode;
-    }) => <NotionPost id={id} renderPost={renderPost} />,
+    }) => <NotionPost id={id} renderPost={renderPost} getPost={getPost} />,
     NotionPosts: ({
       renderPost,
     }: {
       renderPost: (post: T) => React.ReactNode;
-    }) => <NotionPosts renderPost={renderPost} />,
+    }) => <NotionPosts renderPost={renderPost} getPosts={getPosts} />,
     getPost,
     getPosts,
   };
+}
+
+async function NotionPost<T>({
+  id,
+  renderPost,
+  getPost,
+}: {
+  id: string;
+  renderPost: (post: T) => React.ReactNode;
+  getPost: (id: string) => Promise<T>;
+}) {
+  const post = await getPost(id);
+  // The reason why we are using fragments here
+  // https://github.com/vercel/next.js/issues/49280
+  // Problem: It returns JSX.Element instead of React.ReactNode
+  const rn = await renderPost(post);
+  return rn;
+}
+
+async function NotionPosts<T>({
+  renderPost,
+  getPosts,
+}: {
+  renderPost: (post: T) => React.ReactNode;
+  getPosts: () => Promise<T[]>;
+}) {
+  const posts = await getPosts();
+  return posts.map((post) => renderPost(post));
 }
 
 export type Post = {
