@@ -1,19 +1,40 @@
-import { notFound } from "next/navigation";
 import React from "react";
 
-import { Client, isFullPage } from "@notionhq/client";
+import { Client } from "@notionhq/client";
 import {
   PageObjectResponse,
   QueryDatabaseParameters,
 } from "@notionhq/client/build/src/api-endpoints";
 
 import { defaultPostQueryFilter, defaultPostsQueryFilter } from "./filters";
+import { getPostFactory, getPostsFactory } from "./getters";
 import {
   defaultNotionBlockParser,
   defaultNotionBlocksParser,
   defaultPostParser,
 } from "./parsers";
 
+// Can't we do something about this huge overloading?
+export function createNotionComponents(
+  auth: string,
+  dbId: string,
+  options?: {
+    parsePost?: (client: Client, page: PageObjectResponse) => Promise<Post>;
+    postQueryFilter?: (id: string) => QueryDatabaseParameters["filter"];
+    postsQueryFilter?: QueryDatabaseParameters["filter"];
+    postsQuerySorts?: QueryDatabaseParameters["sorts"];
+  }
+): CreateNotionComponentsReturnType<Post>;
+export function createNotionComponents<T extends object>(
+  auth: string,
+  dbId: string,
+  options?: {
+    parsePost?: (client: Client, page: PageObjectResponse) => Promise<T>;
+    postQueryFilter?: (id: string) => QueryDatabaseParameters["filter"];
+    postsQueryFilter?: QueryDatabaseParameters["filter"];
+    postsQuerySorts?: QueryDatabaseParameters["sorts"];
+  }
+): CreateNotionComponentsReturnType<T>;
 export function createNotionComponents<T extends object = Post>(
   auth: string,
   dbId: string,
@@ -21,6 +42,7 @@ export function createNotionComponents<T extends object = Post>(
     parsePost?: (client: Client, page: PageObjectResponse) => Promise<T>;
     postQueryFilter?: (id: string) => QueryDatabaseParameters["filter"];
     postsQueryFilter?: QueryDatabaseParameters["filter"];
+    postsQuerySorts?: QueryDatabaseParameters["sorts"];
   }
 ) {
   if (options?.parsePost === undefined) {
@@ -34,7 +56,6 @@ export function createNotionComponents<T extends object = Post>(
     parsePost: options.parsePost,
   });
 }
-
 function _createNotionComponents<T extends object>(
   auth: string,
   dbId: string,
@@ -42,11 +63,12 @@ function _createNotionComponents<T extends object>(
     parsePost: (client: Client, page: PageObjectResponse) => Promise<T>;
     postQueryFilter?: (id: string) => QueryDatabaseParameters["filter"];
     postsQueryFilter?: QueryDatabaseParameters["filter"];
+    postsQuerySorts?: QueryDatabaseParameters["sorts"];
   }
 ) {
   const parsePost = options.parsePost;
-  const postQueryFilter = options?.postQueryFilter ?? defaultPostQueryFilter;
-  const postsQueryFilter = options?.postsQueryFilter ?? defaultPostsQueryFilter;
+  const postQueryFilter = options.postQueryFilter ?? defaultPostQueryFilter;
+  const postsQueryFilter = options.postsQueryFilter ?? defaultPostsQueryFilter;
 
   const notionClient = new Client({
     auth,
@@ -55,74 +77,66 @@ function _createNotionComponents<T extends object>(
     fetch: fetch,
   });
 
-  async function getPosts() {
-    const pages = await notionClient.databases.query({
-      database_id: dbId,
-      filter: postsQueryFilter,
-    });
-    const posts: ReturnType<typeof parsePost>[] = [];
-    for (const page of pages.results.filter(isFullPage)) {
-      posts.push(parsePost(notionClient, page));
-    }
-    return Promise.all(posts);
-  }
-
-  async function getPost(id: string) {
-    const page = (
-      await notionClient.databases.query({
-        database_id: dbId,
-        filter: postQueryFilter(id),
-      })
-    ).results.filter(isFullPage)[0];
-    if (page === undefined) notFound();
-    return parsePost(notionClient, page);
-  }
+  const getPost = getPostFactory(
+    dbId,
+    notionClient,
+    postQueryFilter,
+    parsePost
+  );
+  const getPosts = getPostsFactory(
+    dbId,
+    notionClient,
+    postsQueryFilter,
+    parsePost,
+    options.postsQuerySorts
+  );
 
   return {
-    NotionPost: ({
+    NotionPost: async ({
       id,
       renderPost,
     }: {
       id: string;
       renderPost: (post: T) => React.ReactNode;
-    }) => <NotionPost id={id} renderPost={renderPost} getPost={getPost} />,
-    NotionPosts: ({
+    }) => {
+      // Cannot use destructured params here to be able to do props[options.uniqueColumnName]
+      // without throwing an error
+      const post = await getPost(id);
+      // Seems we can't return renderPost or await renderPost immediately without
+      // throwing the following error:
+      // Type is referenced directly or indirectly in the fulfillment callback of its own 'then' method
+      const node = await renderPost(post);
+      return node;
+    },
+    NotionPosts: async ({
       renderPost,
     }: {
       renderPost: (post: T) => React.ReactNode;
-    }) => <NotionPosts renderPost={renderPost} getPosts={getPosts} />,
+    }) => {
+      const posts = await getPosts();
+      return posts.map((post) => renderPost(post));
+    },
     getPost,
     getPosts,
   };
 }
 
-async function NotionPost<T>({
-  id,
-  renderPost,
-  getPost,
-}: {
-  id: string;
-  renderPost: (post: T) => React.ReactNode;
+type CreateNotionComponentsReturnType<T> = {
+  NotionPost: ({
+    id,
+    renderPost,
+  }: {
+    id: string;
+    renderPost: (post: T) => React.ReactNode;
+  }) => Promise<React.ReactNode>;
+  NotionPosts: ({
+    renderPost,
+  }: {
+    renderPost: (post: T) => React.ReactNode;
+  }) => Promise<React.ReactNode[]>;
   getPost: (id: string) => Promise<T>;
-}) {
-  const post = await getPost(id);
-  // The reason why we are using fragments here
-  // https://github.com/vercel/next.js/issues/49280
-  // Problem: It returns JSX.Element instead of React.ReactNode
-  const rn = await renderPost(post);
-  return rn;
-}
-
-async function NotionPosts<T>({
-  renderPost,
-  getPosts,
-}: {
-  renderPost: (post: T) => React.ReactNode;
-  getPosts: () => Promise<T[]>;
-}) {
-  const posts = await getPosts();
-  return posts.map((post) => renderPost(post));
-}
+  getPosts: () => Promise<Awaited<T>[]>;
+};
 
 export type Post = {
   content: React.ReactNode[];

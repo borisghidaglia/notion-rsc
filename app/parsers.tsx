@@ -5,6 +5,7 @@ import { Fragment, Suspense } from "react";
 import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
 import {
   BlockObjectResponse,
+  CheckboxPropertyItemObjectResponse,
   PageObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
@@ -44,7 +45,8 @@ export const defaultPostParser = async (
   content: await defaultNotionBlocksParser(client, page.id),
   slug: (page.properties.slug as any).title[0].plain_text,
   title: (page.properties.title as any).rich_text[0].plain_text,
-  published: (page.properties.published as any).checkbox,
+  published: (page.properties.published as CheckboxPropertyItemObjectResponse)
+    .checkbox,
   createdAt: page.created_time.split("T")[0],
 });
 
