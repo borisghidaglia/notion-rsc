@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
-import { Fragment, Suspense } from "react";
+import { Fragment } from "react";
 
 import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
 import {
@@ -10,6 +10,7 @@ import {
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 import { Code } from "bright";
+
 import { Post } from ".";
 
 Code.theme = "github-dark";
@@ -28,6 +29,8 @@ const LocalImage = async ({
   // TODO
   // Check if remote and local file are the same.
   // Here we might miss a new file to download just because they have the same name
+  // TODO
+  // Find a way to fill alt attr. Maybe using Notion captions?
   if (existsSync(localPath))
     return <img key={url} src={join("/notion-files", fileName)} alt="" />;
   const res = await fetch(url);
@@ -40,9 +43,14 @@ const LocalImage = async ({
 
 export const defaultPostParser = async (
   client: Client,
-  page: PageObjectResponse
+  page: PageObjectResponse,
+  blocksParser: (
+    client: Client,
+    blockId: string,
+    blockParser: (block: Block) => React.ReactNode
+  ) => Promise<React.ReactNode[]> = defaultNotionBlocksParser
 ): Promise<Post> => ({
-  content: await defaultNotionBlocksParser(client, page.id),
+  content: await blocksParser(client, page.id, defaultNotionBlockParser),
   slug: (page.properties.slug as any).title[0].plain_text,
   title: (page.properties.title as any).rich_text[0].plain_text,
   published: (page.properties.published as CheckboxPropertyItemObjectResponse)
@@ -53,7 +61,7 @@ export const defaultPostParser = async (
 export const defaultNotionBlocksParser = async (
   client: Client,
   blockId: string,
-  parser: (block: Block) => React.ReactNode = defaultNotionBlockParser
+  blockParser: (block: Block) => React.ReactNode = defaultNotionBlockParser
 ) => {
   const parsedBlocks: React.ReactNode[] = [];
   const typesToGroup = ["numbered_list_item", "bulleted_list_item"] as const;
@@ -90,7 +98,7 @@ export const defaultNotionBlocksParser = async (
 
     if (groupBlock.length > 0) {
       parsedBlocks.push(
-        parser({
+        blockParser({
           groupType: groupBlock[0].type,
           groupedBlocks: groupBlock,
         })
@@ -99,12 +107,12 @@ export const defaultNotionBlocksParser = async (
       lastTypeSeen = undefined;
     }
 
-    parsedBlocks.push(parser(blockWithChildren));
+    parsedBlocks.push(blockParser(blockWithChildren));
   }
 
   if (groupBlock.length > 0) {
     parsedBlocks.push(
-      parser({
+      blockParser({
         groupType: groupBlock[0].type,
         groupedBlocks: groupBlock,
       })
@@ -113,17 +121,25 @@ export const defaultNotionBlocksParser = async (
   return parsedBlocks;
 };
 
-export const defaultNotionBlockParser = (block: Block) => {
+export const defaultNotionBlockParser = (block: Block, verbose?: boolean) => {
   if ("groupType" in block) {
     if (block.groupType === "numbered_list_item")
       return (
-        <ol>{block.groupedBlocks.map((b) => defaultNotionBlockParser(b))}</ol>
+        <ol>
+          {block.groupedBlocks.map((b) => defaultNotionBlockParser(b, verbose))}
+        </ol>
       );
     if (block.groupType === "bulleted_list_item")
       return (
-        <ul>{block.groupedBlocks.map((b) => defaultNotionBlockParser(b))}</ul>
+        <ul>
+          {block.groupedBlocks.map((b) => defaultNotionBlockParser(b, verbose))}
+        </ul>
       );
-    return <div style={{ backgroundColor: "red" }}>{block.groupType}</div>;
+    return verbose ? (
+      <div style={{ backgroundColor: "darkred", margin: "10px 0px 10px 0px" }}>
+        {block.groupType}
+      </div>
+    ) : undefined;
   }
 
   if (block.type === "heading_1")
@@ -193,9 +209,6 @@ export const defaultNotionBlockParser = (block: Block) => {
     );
   }
   if (block.type === "divider") return <hr key={block.id} />;
-  if (block.type === "child_page") {
-    return <p>{block.child_page.title}</p>;
-  }
   if (block.type === "image") {
     if (block.image.type === "external")
       return <img key={block.id} src={block.image.external.url} />;
@@ -203,11 +216,11 @@ export const defaultNotionBlockParser = (block: Block) => {
       return <LocalImage url={block.image.file.url} />;
     }
   }
-  return (
+  return verbose ? (
     <div style={{ backgroundColor: "darkred", margin: "10px 0px 10px 0px" }}>
       {block.type}
     </div>
-  );
+  ) : undefined;
 };
 
 const parseRichTextArray = (rta: RichTextItemResponse[]) =>
@@ -238,7 +251,7 @@ const parseRichText = (rt: RichTextItemResponse) => {
   );
 };
 
-type Block =
+export type Block =
   | BlockWithChildren
   | {
       groupType: "numbered_list_item" | "bulleted_list_item";
@@ -248,3 +261,15 @@ type Block =
 type BlockWithChildren = BlockObjectResponse & {
   children?: React.ReactNode[];
 };
+
+export type BlocksParser = (
+  client: Client,
+  blockId: string,
+  blockParser: (block: Block) => React.ReactNode
+) => Promise<React.ReactNode[]>;
+
+export type PostParser<T> = (
+  client: Client,
+  page: PageObjectResponse,
+  blocksParser: BlocksParser
+) => Promise<T>;

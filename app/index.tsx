@@ -1,14 +1,14 @@
 import React from "react";
 
-import { Client } from "@notionhq/client";
-import {
-  PageObjectResponse,
-  QueryDatabaseParameters,
-} from "@notionhq/client/build/src/api-endpoints";
+import { Client, isFullPage } from "@notionhq/client";
+import { QueryDatabaseParameters } from "@notionhq/client/build/src/api-endpoints";
+import { notFound } from "next/navigation";
 
 import { defaultPostQueryFilter, defaultPostsQueryFilter } from "./filters";
-import { getPostFactory, getPostsFactory } from "./getters";
 import {
+  Block,
+  BlocksParser,
+  PostParser,
   defaultNotionBlockParser,
   defaultNotionBlocksParser,
   defaultPostParser,
@@ -19,7 +19,9 @@ export function createNotionComponents(
   auth: string,
   dbId: string,
   options?: {
-    parsePost?: (client: Client, page: PageObjectResponse) => Promise<Post>;
+    parsePost?: PostParser<Post>;
+    parseBlocks?: BlocksParser;
+    parseBlock?: (block: Block) => React.ReactNode;
     postQueryFilter?: (id: string) => QueryDatabaseParameters["filter"];
     postsQueryFilter?: QueryDatabaseParameters["filter"];
     postsQuerySorts?: QueryDatabaseParameters["sorts"];
@@ -29,7 +31,9 @@ export function createNotionComponents<T extends object>(
   auth: string,
   dbId: string,
   options?: {
-    parsePost?: (client: Client, page: PageObjectResponse) => Promise<T>;
+    parsePost?: PostParser<T>;
+    parseBlocks?: BlocksParser;
+    parseBlock?: (block: Block) => React.ReactNode;
     postQueryFilter?: (id: string) => QueryDatabaseParameters["filter"];
     postsQueryFilter?: QueryDatabaseParameters["filter"];
     postsQuerySorts?: QueryDatabaseParameters["sorts"];
@@ -39,7 +43,9 @@ export function createNotionComponents<T extends object = Post>(
   auth: string,
   dbId: string,
   options?: {
-    parsePost?: (client: Client, page: PageObjectResponse) => Promise<T>;
+    parsePost?: PostParser<T>;
+    parseBlocks?: BlocksParser;
+    parseBlock?: (block: Block) => React.ReactNode;
     postQueryFilter?: (id: string) => QueryDatabaseParameters["filter"];
     postsQueryFilter?: QueryDatabaseParameters["filter"];
     postsQuerySorts?: QueryDatabaseParameters["sorts"];
@@ -56,16 +62,23 @@ export function createNotionComponents<T extends object = Post>(
     parsePost: options.parsePost,
   });
 }
+
 function _createNotionComponents<T extends object>(
   auth: string,
   dbId: string,
   options: {
-    parsePost: (client: Client, page: PageObjectResponse) => Promise<T>;
+    parsePost: PostParser<T>;
+    parseBlocks?: BlocksParser;
+    parseBlock?: (block: Block) => React.ReactNode;
     postQueryFilter?: (id: string) => QueryDatabaseParameters["filter"];
     postsQueryFilter?: QueryDatabaseParameters["filter"];
     postsQuerySorts?: QueryDatabaseParameters["sorts"];
   }
 ) {
+  const parseBlock = options.parseBlock ?? defaultNotionBlockParser;
+  const f: BlocksParser = (client, block_id) =>
+    defaultNotionBlocksParser(client, block_id, parseBlock);
+  const parseBlocks = options.parseBlocks ?? f;
   const parsePost = options.parsePost;
   const postQueryFilter = options.postQueryFilter ?? defaultPostQueryFilter;
   const postsQueryFilter = options.postsQueryFilter ?? defaultPostsQueryFilter;
@@ -77,19 +90,33 @@ function _createNotionComponents<T extends object>(
     fetch: fetch,
   });
 
-  const getPost = getPostFactory(
-    dbId,
-    notionClient,
-    postQueryFilter,
-    parsePost
-  );
-  const getPosts = getPostsFactory(
-    dbId,
-    notionClient,
-    postsQueryFilter,
-    parsePost,
-    options.postsQuerySorts
-  );
+  const getPost = async (id: string) => {
+    try {
+      const page = (
+        await notionClient.databases.query({
+          database_id: dbId,
+          filter: postQueryFilter(id),
+        })
+      ).results.filter(isFullPage)[0];
+      if (page === undefined) notFound();
+      return parsePost(notionClient, page, parseBlocks);
+    } catch {
+      return notFound();
+    }
+  };
+
+  const getPosts = async () => {
+    const pages = await notionClient.databases.query({
+      database_id: dbId,
+      filter: postsQueryFilter,
+      sorts: options.postsQuerySorts,
+    });
+    const posts: Promise<T>[] = [];
+    for (const page of pages.results.filter(isFullPage)) {
+      posts.push(parsePost(notionClient, page, parseBlocks));
+    }
+    return Promise.all(posts);
+  };
 
   return {
     NotionPost: async ({
@@ -99,8 +126,6 @@ function _createNotionComponents<T extends object>(
       id: string;
       renderPost: (post: T) => React.ReactNode;
     }) => {
-      // Cannot use destructured params here to be able to do props[options.uniqueColumnName]
-      // without throwing an error
       const post = await getPost(id);
       // Seems we can't return renderPost or await renderPost immediately without
       // throwing the following error:
@@ -147,6 +172,7 @@ export type Post = {
 };
 
 export {
+  Client,
   defaultNotionBlockParser as parseNotionBlock,
   defaultNotionBlocksParser as parseNotionBlocks,
   defaultPostParser as parseNotionPost,
