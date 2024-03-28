@@ -11,7 +11,7 @@ import {
 } from "@notionhq/client/build/src/api-endpoints";
 import { Code } from "bright";
 
-import { Post } from ".";
+import { Post } from "./index_old";
 
 Code.theme = "github-dark";
 
