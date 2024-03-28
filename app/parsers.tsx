@@ -41,22 +41,30 @@ const LocalImage = async ({
   return <img key={url} src={join("/notion-files", fileName)} alt="" />;
 };
 
-export const defaultPostParser = async (
-  client: Client,
-  page: PageObjectResponse,
-  blocksParser: (
-    client: Client,
-    blockId: string,
-    blockParser: (block: Block) => React.ReactNode
-  ) => Promise<React.ReactNode[]> = defaultNotionBlocksParser
-): Promise<Post> => ({
-  content: await blocksParser(client, page.id, defaultNotionBlockParser),
+export const defaultPostParser = (page: PageObjectResponse) => ({
   slug: (page.properties.slug as any).title[0].plain_text,
   title: (page.properties.title as any).rich_text[0].plain_text,
   published: (page.properties.published as CheckboxPropertyItemObjectResponse)
     .checkbox,
   createdAt: page.created_time.split("T")[0],
 });
+
+// export const defaultPostParser = async (
+//   client: Client,
+//   page: PageObjectResponse,
+//   blocksParser: (
+//     client: Client,
+//     blockId: string,
+//     blockParser: (block: Block) => React.ReactNode
+//   ) => Promise<React.ReactNode[]> = defaultNotionBlocksParser
+// ): Promise<Post> => ({
+//   content: await blocksParser(client, page.id, defaultNotionBlockParser),
+//   slug: (page.properties.slug as any).title[0].plain_text,
+//   title: (page.properties.title as any).rich_text[0].plain_text,
+//   published: (page.properties.published as CheckboxPropertyItemObjectResponse)
+//     .checkbox,
+//   createdAt: page.created_time.split("T")[0],
+// });
 
 export const defaultNotionBlocksParser = async (
   client: Client,
