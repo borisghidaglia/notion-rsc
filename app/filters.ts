@@ -9,7 +9,7 @@ export const defaultPostQueryFilter = (
   ],
 });
 
-export const defaultPostsQueryFilter: QueryDatabaseParameters["filter"] = {
+export const defaultPostsQueryFilter = {
   property: "published",
   checkbox: { equals: true },
 };
