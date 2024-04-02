@@ -2,16 +2,15 @@ import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { Fragment } from "react";
 
-import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
+import { Client, collectPaginatedAPI, isFullBlock } from "@notionhq/client";
 import {
   BlockObjectResponse,
   CheckboxPropertyItemObjectResponse,
   PageObjectResponse,
+  PartialBlockObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 import { Code } from "bright";
-
-import { Post } from "./index_old";
 
 Code.theme = "github-dark";
 
@@ -41,13 +40,27 @@ const LocalImage = async ({
   return <img key={url} src={join("/notion-files", fileName)} alt="" />;
 };
 
-export const defaultPostParser = (page: PageObjectResponse) => ({
-  slug: (page.properties.slug as any).title[0].plain_text,
-  title: (page.properties.title as any).rich_text[0].plain_text,
-  published: (page.properties.published as CheckboxPropertyItemObjectResponse)
-    .checkbox,
-  createdAt: page.created_time.split("T")[0],
-});
+export const defaultPostParser = (page: PageObjectResponse) => {
+  // console.log({ page });
+
+  return {
+    slug: (
+      page.properties.slug as Extract<
+        PageObjectResponse["properties"][string],
+        { type: "title" }
+      >
+    ).title[0].plain_text,
+    title: (
+      page.properties.title as Extract<
+        PageObjectResponse["properties"][string],
+        { type: "rich_text" }
+      >
+    ).rich_text[0].plain_text,
+    published: (page.properties.published as CheckboxPropertyItemObjectResponse)
+      .checkbox,
+    createdAt: page.created_time.split("T")[0],
+  };
+};
 
 // export const defaultPostParser = async (
 //   client: Client,
@@ -68,8 +81,7 @@ export const defaultPostParser = (page: PageObjectResponse) => ({
 
 export const defaultNotionBlocksParser = async (
   client: Client,
-  blockId: string,
-  blockParser: (block: Block) => React.ReactNode = defaultNotionBlockParser
+  blocks: (BlockObjectResponse | PartialBlockObjectResponse)[]
 ) => {
   const parsedBlocks: React.ReactNode[] = [];
   const typesToGroup = ["numbered_list_item", "bulleted_list_item"] as const;
@@ -83,15 +95,18 @@ export const defaultNotionBlocksParser = async (
   let groupBlock: GroupedBlock[] = [];
   let lastTypeSeen: BlockObjectResponse["type"] | undefined = undefined;
 
-  for await (const block of iteratePaginatedAPI(client.blocks.children.list, {
-    block_id: blockId,
-  })) {
+  for (const block of blocks) {
     if (!isFullBlock(block)) continue;
 
     const blockWithChildren = {
       ...block,
       children: block.has_children
-        ? await defaultNotionBlocksParser(client, block.id)
+        ? await defaultNotionBlocksParser(
+            client,
+            await collectPaginatedAPI(client.blocks.children.list, {
+              block_id: block.id,
+            })
+          )
         : undefined,
     };
 
@@ -106,7 +121,7 @@ export const defaultNotionBlocksParser = async (
 
     if (groupBlock.length > 0) {
       parsedBlocks.push(
-        blockParser({
+        defaultNotionBlockParser({
           groupType: groupBlock[0].type,
           groupedBlocks: groupBlock,
         })
@@ -115,12 +130,12 @@ export const defaultNotionBlocksParser = async (
       lastTypeSeen = undefined;
     }
 
-    parsedBlocks.push(blockParser(blockWithChildren));
+    parsedBlocks.push(defaultNotionBlockParser(blockWithChildren));
   }
 
   if (groupBlock.length > 0) {
     parsedBlocks.push(
-      blockParser({
+      defaultNotionBlockParser({
         groupType: groupBlock[0].type,
         groupedBlocks: groupBlock,
       })

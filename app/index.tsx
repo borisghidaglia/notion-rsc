@@ -1,19 +1,18 @@
 import {
   Client as NotionClient,
-  isFullBlock,
+  collectPaginatedAPI,
   isFullPage,
-  iteratePaginatedAPI,
 } from "@notionhq/client";
 import {
   BlockObjectResponse,
-  ListBlockChildrenResponse,
   PageObjectResponse,
+  PartialBlockObjectResponse,
   QueryDatabaseParameters,
   QueryDatabaseResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 import { defaultPostQueryFilter, defaultPostsQueryFilter } from "./filters";
-import { defaultPostParser } from "./parsers";
 import { Post } from "./index_old";
+import { defaultNotionBlocksParser, defaultPostParser } from "./parsers";
 
 export function init(auth: string, databaseId: string) {
   const notionClient = new NotionClient({
@@ -28,11 +27,8 @@ export function init(auth: string, databaseId: string) {
     databaseId,
     defaultPostQueryFilter,
     (response) => response.results.filter(isFullPage)[0],
-    (response) => defaultPostParser(response),
-    (block) => {
-      if (!isFullBlock(block)) return;
-      return block.type + " ";
-    }
+    defaultPostParser,
+    defaultNotionBlocksParser
   );
 
   const NotionPosts = createNotionPosts(
@@ -40,18 +36,15 @@ export function init(auth: string, databaseId: string) {
     databaseId,
     defaultPostsQueryFilter,
     (response) => response.results.filter(isFullPage),
-    (response) => defaultPostParser(response),
-    (block) => {
-      if (!isFullBlock(block)) return;
-      return block.type;
-    }
+    defaultPostParser,
+    defaultNotionBlocksParser
   );
 
   return { NotionPost, NotionPosts };
 }
 
 function createNotionPosts<
-  T extends Record<string, any> = Post,
+  T extends Record<string, any>,
   U extends QueryDatabaseResponse["results"][number] = PageObjectResponse
 >(
   client: NotionClient,
@@ -60,8 +53,9 @@ function createNotionPosts<
   queryDbResponseFilter: (response: QueryDatabaseResponse) => U[],
   responseParser: (response: U) => T,
   blockParser: (
-    response: ListBlockChildrenResponse["results"][number]
-  ) => React.ReactNode
+    client: NotionClient,
+    blocks: (BlockObjectResponse | PartialBlockObjectResponse)[]
+  ) => Promise<React.ReactNode[]>
 ) {
   return async ({
     renderPost,
@@ -93,8 +87,9 @@ function createNotionPost<
   queryDbResponseFilter: (response: QueryDatabaseResponse) => U,
   responseParser: (response: U) => T,
   blockParser: (
-    response: ListBlockChildrenResponse["results"][number]
-  ) => React.ReactNode
+    client: NotionClient,
+    blocks: (BlockObjectResponse | PartialBlockObjectResponse)[]
+  ) => Promise<React.ReactNode[]>
 ) {
   return async ({
     id,
@@ -103,7 +98,7 @@ function createNotionPost<
     id: string;
     renderPost: (post: Prettify<Entry<T>>) => React.ReactNode;
   }) => {
-    const entry = await getNotionEntries(
+    const entry = await getNotionEntry(
       client,
       databaseId,
       queryFilter,
@@ -112,6 +107,7 @@ function createNotionPost<
       blockParser,
       id
     );
+    if (!entry) return null;
     // Seems we can't return renderPost or await renderPost immediately without
     // throwing the following error:
     // Type is referenced directly or indirectly in the fulfillment callback of its own 'then' method
@@ -130,60 +126,70 @@ async function getNotionEntries<
   queryFilter:
     | QueryDatabaseParameters["filter"]
     | ((...args: any[]) => QueryDatabaseParameters["filter"]),
-  queryDbResponseFilter:
-    | ((response: QueryDatabaseResponse) => U)
-    | ((response: QueryDatabaseResponse) => U[]),
+  queryDbResponseFilter: (response: QueryDatabaseResponse) => U[],
   responseParser: (response: U) => T,
   blockParser: (
-    response: ListBlockChildrenResponse["results"][number]
-  ) => React.ReactNode,
+    client: NotionClient,
+    blocks: (BlockObjectResponse | PartialBlockObjectResponse)[]
+  ) => Promise<React.ReactNode[]>,
   args?: V
-): Promise<
-  ReturnType<typeof queryDbResponseFilter> extends any[] ? Entry<T>[] : Entry<T>
-> {
+) {
   const queryDbResponse = await client.databases.query({
     database_id: databaseId,
     filter: typeof queryFilter === "function" ? queryFilter(args) : queryFilter,
   });
 
   const response = queryDbResponseFilter(queryDbResponse);
-  const queryDbResponseFilterReturnedAnArray = Array.isArray(response);
-  const responseArray = queryDbResponseFilterReturnedAnArray
-    ? response
-    : [response];
-
   const entries: Entry<T>[] = [];
-  for (const res of responseArray) {
+  for (const res of response) {
+    console.log({ res });
+
     const properties = responseParser(res);
-    const content: React.ReactNode[] = [];
-    for await (const block of iteratePaginatedAPI(client.blocks.children.list, {
+    const blocks = await collectPaginatedAPI(client.blocks.children.list, {
       block_id: res.id,
-    })) {
-      content.push(blockParser(block));
-    }
+    });
+    const content = await blockParser(client, blocks);
     entries.push({ ...properties, content });
   }
 
-  if (entries.length === 0) return [];
-  if (!queryDbResponseFilterReturnedAnArray) return entries[0];
   return entries;
 }
 
+async function getNotionEntry<
+  V,
+  T extends Record<string, any> = Post,
+  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse
+>(
+  client: NotionClient,
+  databaseId: string,
+  queryFilter:
+    | QueryDatabaseParameters["filter"]
+    | ((...args: any[]) => QueryDatabaseParameters["filter"]),
+  queryDbResponseFilter: (response: QueryDatabaseResponse) => U,
+  responseParser: (response: U) => T,
+  blockParser: (
+    client: NotionClient,
+    blocks: (BlockObjectResponse | PartialBlockObjectResponse)[]
+  ) => Promise<React.ReactNode[]>,
+  args?: V
+) {
+  const entries = await getNotionEntries(
+    client,
+    databaseId,
+    queryFilter,
+    (response) => [queryDbResponseFilter(response)],
+    responseParser,
+    blockParser,
+    args
+  );
+  if (entries.length > 0) return entries[0];
+  throw "wtf";
+}
+
 type Entry<T> = T & {
-  content: React.ReactNode;
+  content: React.ReactNode[];
 };
 
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
-
-function f<U extends any[] | any>(
-  g: (s: string) => U
-): U extends any[] ? U[] : U {
-  const x = g("foo");
-  const y = Array.isArray(x) ? x : [x];
-
-  if (y.length === 0) return [];
-  if (!Array.isArray(x)) return y[0];
-  return y;
-}
