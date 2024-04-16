@@ -13,8 +13,9 @@ import {
 import { defaultPostQueryFilter, defaultPostsQueryFilter } from "./filters";
 import { Post } from "./index_old";
 import { defaultNotionBlocksParser, defaultPostParser } from "./parsers";
+import { Parsers } from "../generated-types";
 
-export function init(auth: string, databaseId: string) {
+export function init(auth: string, databaseId: string, parsers: Parsers) {
   const notionClient = new NotionClient({
     auth,
     // Forwarding local fetch to leverage caching
@@ -45,7 +46,7 @@ export function init(auth: string, databaseId: string) {
 
 function createNotionPosts<
   T extends Record<string, any>,
-  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse
+  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse,
 >(
   client: NotionClient,
   databaseId: string,
@@ -79,7 +80,7 @@ function createNotionPosts<
 
 function createNotionPost<
   T extends Record<string, any> = Post,
-  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse
+  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse,
 >(
   client: NotionClient,
   databaseId: string,
@@ -119,7 +120,7 @@ function createNotionPost<
 async function getNotionEntries<
   V,
   T extends Record<string, any> = Post,
-  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse
+  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse,
 >(
   client: NotionClient,
   databaseId: string,
@@ -158,7 +159,7 @@ async function getNotionEntries<
 async function getNotionEntry<
   V,
   T extends Record<string, any> = Post,
-  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse
+  U extends QueryDatabaseResponse["results"][number] = PageObjectResponse,
 >(
   client: NotionClient,
   databaseId: string,

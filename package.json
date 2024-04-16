@@ -4,6 +4,8 @@
   "description": "Turns Notion pages into React Server Components",
   "main": "app/index.tsx",
   "scripts": {
+    "gen-types": "tsx ./app/g.ts",
+    "get-types": "tsx ./app/extract-type.ts",
     "lint": "next lint"
   },
   "repository": {
@@ -34,6 +36,8 @@
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "14.1.0",
+    "prettier": "^3.2.5",
+    "tsx": "^4.7.2",
     "typescript": "^5"
   }
 }
