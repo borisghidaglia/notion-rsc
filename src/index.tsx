@@ -1,4 +1,3 @@
-import React from "react";
 import { getNotionData } from "./data";
 import { DatabaseParsers, PageParsers } from ".notion-rsc/generated-types";
 

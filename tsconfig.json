@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "types": ["react/canary", "react-dom/canary"],
+    "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": { "notion-rsc/*": ["./*"] },
     "outDir": "dist",
@@ -16,5 +18,5 @@
     "isolatedModules": true,
     "incremental": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src"]
 }

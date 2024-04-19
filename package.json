@@ -29,18 +29,12 @@
     "bright": "^0.8.4",
     "commander": "^12.0.0",
     "dotenv": "^16.4.5",
-    "next": "^14.2.2",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "prettier": "^3.2.5"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.2.25",
-    "eslint": "^8",
-    "eslint-config-next": "14.1.0",
-    "prettier": "^3.2.5",
-    "tsx": "^4.7.2",
-    "typescript": "^5"
+    "typescript": "^5.4.5"
   }
 }
