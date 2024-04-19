@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+#!/usr/bin/env node --no-deprecation
+// TODO: remove --no-deprecation when punycode warning is fixed
 
 import { Command } from "commander";
 import { readFileSync, unlinkSync, writeFileSync } from "fs";
@@ -34,6 +35,7 @@ program
     unlinkSync(join(cwd(), "/notion-rsc.config.js"));
     writeFileSync(join(__dirname, "/notion-rsc.config.js"), config);
     await createSchema();
+    console.log("Everything done ✅");
   });
 
 program.parse();

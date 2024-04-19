@@ -40,6 +40,7 @@ export async function fetchNotionData(
 async function fetchPagesData(client: Client, ids: string[]) {
   const data: Record<string, GetPageResponse> = {};
   for (const id of ids) {
+    console.log(`Fetching page ${id}...`);
     data[id] = await client.pages.retrieve({ page_id: id });
   }
   return data;
@@ -48,6 +49,7 @@ async function fetchPagesData(client: Client, ids: string[]) {
 async function fetchDatabasesData(client: Client, ids: string[]) {
   const data: Record<string, QueryDatabaseResponse> = {};
   for (const id of ids) {
+    console.log(`Fetching database ${id}...`);
     data[id] = await client.databases.query({ database_id: id });
   }
   return data;
