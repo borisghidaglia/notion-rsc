@@ -11,16 +11,16 @@ export function createNotionComponents(parsers?: {
   const defaultPageParsers = {} as PageParsers;
   Object.keys(notionData.pages).map(
     (k) =>
-      (defaultPageParsers["Page" + k] = (page: any) => (
+      (defaultPageParsers[("Page" + k) as keyof PageParsers] = (page: any) => (
         <pre>{JSON.stringify(page, null, 2)}</pre>
       ))
   );
   const defaultDatabaseParsers = {} as DatabaseParsers;
   Object.keys(notionData.databases).map(
     (k) =>
-      (defaultDatabaseParsers["Database" + k] = (entries: any) => (
-        <pre>{JSON.stringify(entries, null, 2)}</pre>
-      ))
+      (defaultDatabaseParsers[("Database" + k) as keyof DatabaseParsers] = (
+        entries: any
+      ) => <pre>{JSON.stringify(entries, null, 2)}</pre>)
   );
   return _createNotionComponents(defaultPageParsers, defaultDatabaseParsers);
 }
@@ -38,17 +38,24 @@ function _createNotionComponents(
 
   Object.entries(notionData.pages).map(([k, v]) => {
     if (!("properties" in v)) return;
-    const parser = pageParsers["Page" + k];
-    pageComponents.push([`Page${k}`, () => parser(v.properties)]);
+    // if parser is not defined, we use JSON.stringify instead
+    const parser =
+      pageParsers[("Page" + k) as keyof PageParsers] || JSON.stringify;
+    pageComponents.push([
+      `Page${k}`,
+      () => parser(v.properties as Parameters<typeof parser>[0]),
+    ]);
   });
 
   const databaseComponents: [
     keyof typeof notionData.databases,
     () => React.ReactNode,
   ][] = [];
-
+  // if parser is not defined, we use JSON.stringify instead
   Object.entries(notionData.databases).map(([k, v]) => {
-    const parser = databaseParsers["Database" + k];
+    const parser =
+      databaseParsers[("Database" + k) as keyof DatabaseParsers] ||
+      JSON.stringify;
     databaseComponents.push([
       `Database${k}`,
       () => {
@@ -56,7 +63,7 @@ function _createNotionComponents(
           if (!("properties" in res)) return;
           return res.properties;
         });
-        return parser(properties);
+        return parser(properties as Parameters<typeof parser>[0]);
       },
     ]);
   });
