@@ -29,11 +29,11 @@ export async function createSchema() {
     fetch: fetch,
   });
 
-  const notionData = await fetchNotionData(notionClient, pageIds, databaseIds);
-
   if (!existsSync("./node_modules/.notion-rsc/")) {
     mkdirSync("./node_modules/.notion-rsc/");
   }
+
+  const notionData = await fetchNotionData(notionClient, pageIds, databaseIds);
 
   writeFileSync("./node_modules/.notion-rsc/generated-types.ts", "");
 
