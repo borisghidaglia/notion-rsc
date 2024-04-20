@@ -5,7 +5,6 @@ import { Fragment } from "react";
 import { Client, collectPaginatedAPI, isFullBlock } from "@notionhq/client";
 import {
   BlockObjectResponse,
-  CheckboxPropertyItemObjectResponse,
   PageObjectResponse,
   PartialBlockObjectResponse,
   RichTextItemResponse,
@@ -14,51 +13,9 @@ import { Code } from "bright";
 
 Code.theme = "github-dark";
 
-const LocalImage = async ({
-  url,
-  notionPublicFolder = `${process.cwd()}/public/notion-files`,
-}: {
-  url: string;
-  notionPublicFolder?: string;
-}) => {
-  const _url = new URL(url);
-  const pathName = _url.pathname;
-  const fileName = pathName.split("/")[pathName.split("/").length - 1];
-  const localPath = join(notionPublicFolder, fileName);
-  // TODO
-  // Check if remote and local file are the same.
-  // Here we might miss a new file to download just because they have the same name
-  // TODO
-  // Find a way to fill alt attr. Maybe using Notion captions?
-  if (existsSync(localPath))
-    return <img key={url} src={join("/notion-files", fileName)} alt="" />;
-  const res = await fetch(url);
-  if (!existsSync(notionPublicFolder)) {
-    mkdirSync(notionPublicFolder, { recursive: true });
-  }
-  writeFileSync(localPath, new Uint8Array(await res.arrayBuffer()));
-  return <img key={url} src={join("/notion-files", fileName)} alt="" />;
-};
-
-export const defaultPostParser = (page: PageObjectResponse) => {
-  return {
-    slug: (
-      page.properties.slug as Extract<
-        PageObjectResponse["properties"][string],
-        { type: "title" }
-      >
-    ).title[0].plain_text,
-    title: (
-      page.properties.title as Extract<
-        PageObjectResponse["properties"][string],
-        { type: "rich_text" }
-      >
-    ).rich_text[0].plain_text,
-    published: (page.properties.published as CheckboxPropertyItemObjectResponse)
-      .checkbox,
-    createdAt: page.created_time.split("T")[0],
-  };
-};
+export function defaultParser(pageOrDatabase: any) {
+  return <pre>{JSON.stringify(pageOrDatabase, null, 2)}</pre>;
+}
 
 export const defaultNotionBlocksParser = async (
   client: Client,
@@ -253,6 +210,32 @@ const parseRichText = (rt: RichTextItemResponse) => {
   ) : (
     node
   );
+};
+
+const LocalImage = async ({
+  url,
+  notionPublicFolder = `${process.cwd()}/public/notion-files`,
+}: {
+  url: string;
+  notionPublicFolder?: string;
+}) => {
+  const _url = new URL(url);
+  const pathName = _url.pathname;
+  const fileName = pathName.split("/")[pathName.split("/").length - 1];
+  const localPath = join(notionPublicFolder, fileName);
+  // TODO
+  // Check if remote and local file are the same.
+  // Here we might miss a new file to download just because they have the same name
+  // TODO
+  // Find a way to fill alt attr. Maybe using Notion captions?
+  if (existsSync(localPath))
+    return <img key={url} src={join("/notion-files", fileName)} alt="" />;
+  const res = await fetch(url);
+  if (!existsSync(notionPublicFolder)) {
+    mkdirSync(notionPublicFolder, { recursive: true });
+  }
+  writeFileSync(localPath, new Uint8Array(await res.arrayBuffer()));
+  return <img key={url} src={join("/notion-files", fileName)} alt="" />;
 };
 
 export type Block =

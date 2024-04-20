@@ -6,24 +6,13 @@ import {
   QueryDatabaseResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 import { cwd } from "process";
+import { format } from "prettier";
+import { execSync } from "child_process";
 
 export const NOTION_DATA_PATH = join(
   cwd(),
-  "/node_modules/.notion-rsc/notion-data.json"
+  "/node_modules/.notion-rsc/notion-data.ts"
 );
-
-export function getNotionData() {
-  if (!existsSync(NOTION_DATA_PATH))
-    throw new Error(
-      "Notion data not found. Please run the 'npx notion-rsc sync' command."
-    );
-
-  const data: {
-    pages: Record<string, GetPageResponse>;
-    databases: Record<string, QueryDatabaseResponse>;
-  } = JSON.parse(readFileSync(NOTION_DATA_PATH).toString());
-  return data;
-}
 
 export async function fetchNotionData(
   client: Client,
@@ -33,7 +22,12 @@ export async function fetchNotionData(
   const pagesData = await fetchPagesData(client, pageIds);
   const databasesData = await fetchDatabasesData(client, databaseIds);
   const data = { pages: pagesData, databases: databasesData };
-  writeFileSync(NOTION_DATA_PATH, JSON.stringify(data));
+  const formattedDataStr = await format(
+    `export const notionData = ${JSON.stringify(data)} as const;`,
+    { parser: "typescript" }
+  );
+  writeFileSync(NOTION_DATA_PATH, formattedDataStr);
+  execSync(`tsc ${NOTION_DATA_PATH}`);
   return data;
 }
 
@@ -54,5 +48,3 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
   }
   return data;
 }
-
-export type NotionData = Awaited<ReturnType<typeof getNotionData>>;

@@ -1,65 +1,40 @@
-import { getNotionData } from "./data";
 import { DatabaseParsers, PageParsers } from ".notion-rsc/generated-types";
+import { notionData } from ".notion-rsc/notion-data";
+import { defaultParser } from "./parsers";
 
 export function createNotionComponents(parsers?: {
   pages?: PageParsers;
   databases?: DatabaseParsers;
 }) {
-  const notionData = getNotionData();
-
-  const defaultPageParsers = {} as PageParsers;
-  Object.keys(notionData.pages).map(
-    (k) =>
-      (defaultPageParsers[("Page" + k) as keyof PageParsers] = (page: any) => (
-        <pre>{JSON.stringify(page, null, 2)}</pre>
-      ))
-  );
-  const defaultDatabaseParsers = {} as DatabaseParsers;
-  Object.keys(notionData.databases).map(
-    (k) =>
-      (defaultDatabaseParsers[("Database" + k) as keyof DatabaseParsers] = (
-        entries: any
-      ) => <pre>{JSON.stringify(entries, null, 2)}</pre>)
-  );
-  return _createNotionComponents(defaultPageParsers, defaultDatabaseParsers);
-}
-
-function _createNotionComponents(
-  pageParsers: PageParsers,
-  databaseParsers: DatabaseParsers
-) {
-  const notionData = getNotionData();
-
   const pageComponents: [
-    keyof typeof notionData.databases,
+    `Page${keyof typeof notionData.pages}`,
     () => React.ReactNode,
   ][] = [];
-
   Object.entries(notionData.pages).map(([k, v]) => {
-    if (!("properties" in v)) return;
+    if (!("properties" in v)) return null;
     // if parser is not defined, we use JSON.stringify instead
     const parser =
-      pageParsers[("Page" + k) as keyof PageParsers] || JSON.stringify;
+      parsers?.pages?.[("Page" + k) as keyof PageParsers] || defaultParser;
     pageComponents.push([
-      `Page${k}`,
+      `Page${k as keyof typeof notionData.pages}`,
       () => parser(v.properties as Parameters<typeof parser>[0]),
     ]);
   });
 
   const databaseComponents: [
-    keyof typeof notionData.databases,
+    `Database${keyof typeof notionData.databases}`,
     () => React.ReactNode,
   ][] = [];
   // if parser is not defined, we use JSON.stringify instead
   Object.entries(notionData.databases).map(([k, v]) => {
     const parser =
-      databaseParsers[("Database" + k) as keyof DatabaseParsers] ||
-      JSON.stringify;
+      parsers?.databases?.[("Database" + k) as keyof DatabaseParsers] ||
+      defaultParser;
     databaseComponents.push([
-      `Database${k}`,
+      `Database${k as keyof typeof notionData.databases}`,
       () => {
         const properties = v.results.map((res) => {
-          if (!("properties" in res)) return;
+          if (!("properties" in res)) return null;
           return res.properties;
         });
         return parser(properties as Parameters<typeof parser>[0]);
@@ -68,7 +43,13 @@ function _createNotionComponents(
   });
 
   return {
-    pages: Object.fromEntries(pageComponents),
-    databases: Object.fromEntries(databaseComponents),
+    pages: Object.fromEntries(pageComponents) as Record<
+      `Page${keyof typeof notionData.pages}`,
+      () => React.ReactNode
+    >,
+    databases: Object.fromEntries(databaseComponents) as Record<
+      `Database${keyof typeof notionData.databases}`,
+      () => React.ReactNode
+    >,
   };
 }

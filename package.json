@@ -2,12 +2,12 @@
   "name": "notion-rsc",
   "version": "0.0.4",
   "description": "Turns Notion pages into React Server Components",
-  "main": "src/index.tsx",
+  "main": "dist/index.js",
   "bin": {
     "notion-rsc": "./dist/cli.js"
   },
   "scripts": {
-    "build-cli": "npx tsc -p ./tsconfig.build.json"
+    "build": "npx tsc"
   },
   "repository": {
     "type": "git",

@@ -29,12 +29,23 @@ program
   )
   .action(async () => {
     console.log("Syncing...");
+    // Load the .env.local file to get the notion api key
     dotenv.config({ path: join(cwd(), ".env.local") });
+
+    // Compile user config and move the result to our module directory
     execSync(`tsc ${join(cwd(), "/notion-rsc.config.ts")}`);
     const config = readFileSync(join(cwd(), "/notion-rsc.config.js"));
     unlinkSync(join(cwd(), "/notion-rsc.config.js"));
     writeFileSync(join(__dirname, "/notion-rsc.config.js"), config);
+
+    // Create the types
     await createSchema();
+
+    // Rebuild the module so that the types are accurately reflected
+    // in the .d.ts generated files
+    console.log("Rebuilding module...");
+    execSync("npm run build", { cwd: join(__dirname, "../src/") });
+
     console.log("Everything done ✅");
   });
 

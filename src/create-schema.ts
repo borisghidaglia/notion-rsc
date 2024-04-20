@@ -42,13 +42,13 @@ export async function createSchema() {
   // Parsers
   tsCodeStr.push(`export type PageParsers = {`);
   for (const id of pageIds) {
-    tsCodeStr.push(`Page${id}?: (page: Page${id}) => React.ReactNode`);
+    tsCodeStr.push(`Page${id}?: (page: Page${id}) => React.ReactNode;`);
   }
   tsCodeStr.push(`};\n\n`);
   tsCodeStr.push(`export type DatabaseParsers = {`);
   for (const id of databaseIds) {
     tsCodeStr.push(
-      `Database${id}?: (entries: Database${id}[]) => React.ReactNode`
+      `Database${id}?: (entries: Database${id}[]) => React.ReactNode;`
     );
   }
   tsCodeStr.push(`};\n\n`);
