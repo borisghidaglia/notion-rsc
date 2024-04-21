@@ -12,6 +12,7 @@ import {
 } from "fs";
 import { format } from "prettier";
 
+import { getDatabaseName, getPageName } from ".";
 import { fetchNotionData } from "./data";
 import { PageObjectReponseProperties } from "./notion-properties";
 import { NotionRscConfig } from "./types";
@@ -42,21 +43,25 @@ export async function createSchema() {
   // Parsers
   tsCodeStr.push(`export type PageParsers = {`);
   for (const id of pageIds) {
-    tsCodeStr.push(`Page${id}?: (page: Page${id}) => React.ReactNode;`);
+    const pageName = getPageName(notionData, id);
+    tsCodeStr.push(
+      `Page${pageName}?: (page: Page${pageName}) => React.ReactNode;`
+    );
   }
   tsCodeStr.push(`};\n\n`);
   tsCodeStr.push(`export type DatabaseParsers = {`);
   for (const id of databaseIds) {
+    const databaseName = getDatabaseName(notionData, id);
     tsCodeStr.push(
-      `Database${id}?: (entries: Database${id}[]) => React.ReactNode;`
+      `Database${databaseName}?: (entries: Database${databaseName}[]) => React.ReactNode;`
     );
   }
   tsCodeStr.push(`};\n\n`);
 
   // Page Types
-  for (const pageId of pageIds) {
-    tsCodeStr.push(`type Page${pageId} = {`);
-    const pageData = notionData.pages[pageId];
+  for (const id of pageIds) {
+    tsCodeStr.push(`type Page${getPageName(notionData, id)} = {`);
+    const pageData = notionData.pages[id];
     if (!isFullPage(pageData)) return;
     for (const property of Object.keys(pageData.properties)) {
       const propertyType = pageData.properties[property].type;
@@ -70,9 +75,9 @@ export async function createSchema() {
   }
 
   // Database Types
-  for (const databaseId of databaseIds) {
-    tsCodeStr.push(`type Database${databaseId} = {`);
-    const databaseData = notionData.databases[databaseId].results[0];
+  for (const id of databaseIds) {
+    tsCodeStr.push(`type Database${getDatabaseName(notionData, id)} = {`);
+    const databaseData = notionData.databases[id].query.results[0];
     if (!isFullPageOrDatabase(databaseData)) return;
     for (const property of Object.keys(databaseData.properties)) {
       const propertyType = databaseData.properties[property].type;

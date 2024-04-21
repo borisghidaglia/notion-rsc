@@ -1,13 +1,14 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
 import { Client } from "@notionhq/client";
-import { join } from "path";
 import {
+  GetDatabaseResponse,
   GetPageResponse,
   QueryDatabaseResponse,
 } from "@notionhq/client/build/src/api-endpoints";
-import { cwd } from "process";
-import { format } from "prettier";
 import { execSync } from "child_process";
+import { writeFileSync } from "fs";
+import { join } from "path";
+import { format } from "prettier";
+import { cwd } from "process";
 
 export const NOTION_DATA_PATH = join(
   cwd(),
@@ -41,10 +42,16 @@ async function fetchPagesData(client: Client, ids: string[]) {
 }
 
 async function fetchDatabasesData(client: Client, ids: string[]) {
-  const data: Record<string, QueryDatabaseResponse> = {};
+  const data: Record<
+    string,
+    { query: QueryDatabaseResponse; retrieve: GetDatabaseResponse }
+  > = {};
   for (const id of ids) {
     console.log(`Fetching database ${id}...`);
-    data[id] = await client.databases.query({ database_id: id });
+    data[id] = {
+      query: await client.databases.query({ database_id: id }),
+      retrieve: await client.databases.retrieve({ database_id: id }),
+    };
   }
   return data;
 }

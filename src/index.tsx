@@ -1,39 +1,36 @@
 import { DatabaseParsers, PageParsers } from ".notion-rsc/generated-types";
 import { notionData } from ".notion-rsc/notion-data";
+import { GetDatabaseResponse } from "@notionhq/client/build/src/api-endpoints";
 import { defaultParser } from "./parsers";
 
 export function createNotionComponents(parsers?: {
   pages?: PageParsers;
   databases?: DatabaseParsers;
 }) {
-  const pageComponents: [
-    `Page${keyof typeof notionData.pages}`,
-    () => React.ReactNode,
-  ][] = [];
+  const pageComponents: [keyof PageParsers, () => React.ReactNode][] = [];
   Object.entries(notionData.pages).map(([k, v]) => {
     if (!("properties" in v)) return null;
-    // if parser is not defined, we use JSON.stringify instead
     const parser =
-      parsers?.pages?.[("Page" + k) as keyof PageParsers] || defaultParser;
+      parsers?.pages?.[
+        `Page${getPageName(notionData, k)}` as keyof PageParsers
+      ] || defaultParser;
     pageComponents.push([
-      `Page${k as keyof typeof notionData.pages}`,
+      `Page${getPageName(notionData, k)}` as keyof PageParsers,
       () => parser(v.properties as Parameters<typeof parser>[0]),
     ]);
   });
 
-  const databaseComponents: [
-    `Database${keyof typeof notionData.databases}`,
-    () => React.ReactNode,
-  ][] = [];
-  // if parser is not defined, we use JSON.stringify instead
+  const databaseComponents: [keyof DatabaseParsers, () => React.ReactNode][] =
+    [];
   Object.entries(notionData.databases).map(([k, v]) => {
     const parser =
-      parsers?.databases?.[("Database" + k) as keyof DatabaseParsers] ||
-      defaultParser;
+      parsers?.databases?.[
+        `Database${getDatabaseName(notionData as unknown as Parameters<typeof getDatabaseName>[0], k)}` as keyof DatabaseParsers
+      ] || defaultParser;
     databaseComponents.push([
-      `Database${k as keyof typeof notionData.databases}`,
+      `Database${getDatabaseName(notionData as unknown as Parameters<typeof getDatabaseName>[0], k)}` as keyof DatabaseParsers,
       () => {
-        const properties = v.results.map((res) => {
+        const properties = v.query.results.map((res) => {
           if (!("properties" in res)) return null;
           return res.properties;
         });
@@ -44,12 +41,41 @@ export function createNotionComponents(parsers?: {
 
   return {
     pages: Object.fromEntries(pageComponents) as Record<
-      `Page${keyof typeof notionData.pages}`,
+      keyof PageParsers,
       () => React.ReactNode
     >,
     databases: Object.fromEntries(databaseComponents) as Record<
-      `Database${keyof typeof notionData.databases}`,
+      keyof DatabaseParsers,
       () => React.ReactNode
     >,
   };
 }
+
+export const getPageName = <T extends { pages: Record<string, any> }>(
+  data: T,
+  pageId: keyof typeof data.pages
+) => {
+  const page = data.pages[pageId];
+  return "properties" in page &&
+    page.properties.title.type === "title" &&
+    page.properties.title.title[0].plain_text
+    ? page.properties.title.title[0].plain_text.replaceAll(" ", "")
+    : pageId;
+};
+
+export const getDatabaseName = <
+  T extends {
+    databases: Record<
+      string,
+      { retrieve: GetDatabaseResponse } & Record<string, any>
+    >;
+  },
+>(
+  data: T,
+  databaseId: keyof typeof data.databases
+) => {
+  const database = data.databases[databaseId];
+  return "title" in database.retrieve
+    ? database.retrieve.title[0].plain_text.replace(/\s/g, "")
+    : databaseId;
+};
