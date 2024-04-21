@@ -8,7 +8,7 @@ import { cwd } from "process";
 
 import { execSync } from "child_process";
 import * as dotenv from "dotenv";
-import { createSchema } from "./create-schema";
+import { createSchema } from "./createSchema";
 
 const program = new Command();
 
@@ -44,7 +44,7 @@ program
     // Rebuild the module so that the types are accurately reflected
     // in the .d.ts generated files
     console.log("Rebuilding module...");
-    execSync("npm run build", { cwd: join(__dirname, "../src/") });
+    execSync("npm run build", { cwd: join(__dirname, "../../") });
 
     console.log("Everything done ✅");
   });

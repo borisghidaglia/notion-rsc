@@ -12,10 +12,10 @@ import {
 } from "fs";
 import { format } from "prettier";
 
-import { getDatabaseName, getPageName } from ".";
+import { PageObjectReponseProperties } from "../notion-properties";
+import { NotionRscConfig } from "../types";
+import { getDatabaseName, getPageName } from "../utils";
 import { fetchNotionData } from "./data";
-import { PageObjectReponseProperties } from "./notion-properties";
-import { NotionRscConfig } from "./types";
 
 export async function createSchema() {
   const config: { default: NotionRscConfig } = require("./notion-rsc.config");

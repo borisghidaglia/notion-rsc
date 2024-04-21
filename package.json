@@ -4,7 +4,7 @@
   "description": "Turns Notion pages into React Server Components",
   "main": "dist/index.js",
   "bin": {
-    "notion-rsc": "./dist/cli.js"
+    "notion-rsc": "./dist/before-type-gen/cli.js"
   },
   "scripts": {
     "build": "npx tsc"
