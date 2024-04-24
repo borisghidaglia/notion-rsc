@@ -1,5 +1,6 @@
-import { Client } from "@notionhq/client";
+import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
 import {
+  BlockObjectResponse,
   GetDatabaseResponse,
   GetPageResponse,
   QueryDatabaseResponse,
@@ -33,10 +34,18 @@ export async function fetchNotionData(
 }
 
 async function fetchPagesData(client: Client, ids: string[]) {
-  const data: Record<string, GetPageResponse> = {};
+  const data: Record<
+    string,
+    GetPageResponse & { blocks: BlockObjectResponseWithChildren[] }
+  > = {};
   for (const id of ids) {
     console.log(`Fetching page ${id}...`);
-    data[id] = await client.pages.retrieve({ page_id: id });
+    const page = await client.pages.retrieve({ page_id: id });
+    const blocks = await getBlocksRecursively(client, id);
+    data[id] = {
+      ...page,
+      blocks,
+    };
   }
   return data;
 }
@@ -55,3 +64,24 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
   }
   return data;
 }
+
+async function getBlocksRecursively(client: Client, blockId: string) {
+  const blocks: BlockObjectResponseWithChildren[] = [];
+  for await (const block of iteratePaginatedAPI(client.blocks.children.list, {
+    block_id: blockId,
+  })) {
+    if (isFullBlock(block)) {
+      blocks.push({
+        ...block,
+        children: block.has_children
+          ? await getBlocksRecursively(client, block.id)
+          : undefined,
+      });
+    }
+  }
+  return blocks;
+}
+
+type BlockObjectResponseWithChildren = BlockObjectResponse & {
+  children?: BlockObjectResponse[];
+};

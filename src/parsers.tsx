@@ -9,18 +9,12 @@ import {
   PartialBlockObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
-import { Code } from "bright";
-
-Code.theme = "github-dark";
 
 export function defaultParser(pageOrDatabase: any) {
   return <pre>{JSON.stringify(pageOrDatabase, null, 2)}</pre>;
 }
 
-export const defaultNotionBlocksParser = async (
-  client: Client,
-  blocks: (BlockObjectResponse | PartialBlockObjectResponse)[]
-) => {
+export const defaultNotionBlocksParser = (blocks: BlockWithChildren[]) => {
   const parsedBlocks: React.ReactNode[] = [];
   const typesToGroup = ["numbered_list_item", "bulleted_list_item"] as const;
   type GroupedBlock = Extract<
@@ -34,26 +28,12 @@ export const defaultNotionBlocksParser = async (
   let lastTypeSeen: BlockObjectResponse["type"] | undefined = undefined;
 
   for (const block of blocks) {
-    if (!isFullBlock(block)) continue;
-
-    const blockWithChildren = {
-      ...block,
-      children: block.has_children
-        ? await defaultNotionBlocksParser(
-            client,
-            await collectPaginatedAPI(client.blocks.children.list, {
-              block_id: block.id,
-            })
-          )
-        : undefined,
-    };
-
     if (
-      (!lastTypeSeen || lastTypeSeen === blockWithChildren.type) &&
-      isGroupedBlock(blockWithChildren)
+      (!lastTypeSeen || lastTypeSeen === block.type) &&
+      isGroupedBlock(block)
     ) {
-      groupBlock.push(blockWithChildren);
-      lastTypeSeen = blockWithChildren.type;
+      groupBlock.push(block);
+      lastTypeSeen = block.type;
       continue;
     }
 
@@ -68,7 +48,7 @@ export const defaultNotionBlocksParser = async (
       lastTypeSeen = undefined;
     }
 
-    parsedBlocks.push(defaultNotionBlockParser(blockWithChildren));
+    parsedBlocks.push(defaultNotionBlockParser(block));
   }
 
   if (groupBlock.length > 0) {
@@ -117,46 +97,48 @@ export const defaultNotionBlockParser = (block: Block, verbose?: boolean) => {
     );
   if (block.type === "paragraph") {
     return (
-      <p key={block.id}>
-        {parseRichTextArray(block.paragraph.rich_text)}
-        {block.children}
-      </p>
+      <>
+        <p key={block.id}>{parseRichTextArray(block.paragraph.rich_text)}</p>
+        {block.children && defaultNotionBlocksParser(block.children)}
+      </>
     );
   }
   if (block.type === "numbered_list_item")
     return (
-      <li key={block.id}>
-        {parseRichTextArray(block.numbered_list_item.rich_text)}
-        {block.children}
-      </li>
+      <>
+        <li key={block.id}>
+          {parseRichTextArray(block.numbered_list_item.rich_text)}
+        </li>
+        {block.children && defaultNotionBlocksParser(block.children)}
+      </>
     );
   if (block.type === "bulleted_list_item")
     return (
-      <li key={block.id}>
-        {parseRichTextArray(block.bulleted_list_item.rich_text)}
-        {block.children}
-      </li>
+      <>
+        <li key={block.id}>
+          {parseRichTextArray(block.bulleted_list_item.rich_text)}
+        </li>
+        {block.children && defaultNotionBlocksParser(block.children)}
+      </>
     );
   if (block.type === "quote")
     return (
-      <blockquote key={block.id}>
-        {parseRichTextArray(block.quote.rich_text)}
-        {block.children}
-      </blockquote>
+      <>
+        <blockquote key={block.id}>
+          {parseRichTextArray(block.quote.rich_text)}
+        </blockquote>
+        {block.children && defaultNotionBlocksParser(block.children)}
+      </>
     );
   if (block.type === "code") {
-    return (
-      // Hack: if language is not supported by Notion, you can set it by writing it in the caption
-      // Note: for now we are ignoring rich text features on code blocks
-      <Code lang={block.code.caption[0]?.plain_text ?? block.code.language}>
-        {block.code.rich_text.map((rt) => rt.plain_text).toString()}
-      </Code>
-    );
+    return <CodeComponent block={block} />;
   }
   if (block.type === "table") {
     return (
       <table>
-        <tbody>{block.children}</tbody>
+        <tbody>
+          {block.children && defaultNotionBlocksParser(block.children)}
+        </tbody>
       </table>
     );
   }
@@ -238,6 +220,22 @@ const LocalImage = async ({
   return <img key={url} src={join("/notion-files", fileName)} alt="" />;
 };
 
+const CodeComponent = async ({
+  block,
+}: {
+  block: Extract<Block, { type: "code" }>;
+}) => {
+  const { Code } = await import("bright");
+  Code.theme = "github-dark";
+  return (
+    // Hack: if language is not supported by Notion, you can set it by writing it in the caption
+    // Note: for now we are ignoring rich text features on code blocks
+    <Code lang={block.code.caption[0]?.plain_text ?? block.code.language}>
+      {block.code.rich_text.map((rt) => rt.plain_text).toString()}
+    </Code>
+  );
+};
+
 export type Block =
   | BlockWithChildren
   | {
@@ -246,7 +244,7 @@ export type Block =
     };
 
 type BlockWithChildren = BlockObjectResponse & {
-  children?: React.ReactNode[];
+  children?: BlockObjectResponse[];
 };
 
 export type BlocksParser = (

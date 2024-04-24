@@ -71,6 +71,9 @@ export async function createSchema() {
         ];
       tsCodeStr.push(`"${property}": ${typeStr};`);
     }
+    tsCodeStr.push(
+      `blocks: (BlockObjectResponse & { children?: BlockObjectResponse[] })[];`
+    );
     tsCodeStr.push("};\n\n");
   }
 

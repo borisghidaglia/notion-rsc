@@ -8,15 +8,19 @@ export function createNotionComponents(parsers?: {
   databases?: DatabaseParsers;
 }) {
   const pageComponents: [keyof PageParsers, () => React.ReactNode][] = [];
-  Object.entries(notionData.pages).map(([k, v]) => {
-    if (!("properties" in v)) return null;
+  Object.entries(notionData.pages).map(([pageId, pageData]) => {
+    if (!("properties" in pageData)) return null;
     const parser =
       parsers?.pages?.[
-        `Page${getPageName(notionData, k)}` as keyof PageParsers
+        `Page${getPageName(notionData, pageId)}` as keyof PageParsers
       ] || defaultParser;
     pageComponents.push([
-      `Page${getPageName(notionData, k)}` as keyof PageParsers,
-      () => parser(v.properties as Parameters<typeof parser>[0]),
+      `Page${getPageName(notionData, pageId)}` as keyof PageParsers,
+      () =>
+        parser({
+          ...pageData.properties,
+          blocks: pageData.blocks,
+        } as Parameters<typeof parser>[0]),
     ]);
   });
 
