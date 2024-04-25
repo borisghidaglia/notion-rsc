@@ -13,7 +13,10 @@ export function defaultParser(pageOrDatabase: any) {
   return <pre>{JSON.stringify(pageOrDatabase, null, 2)}</pre>;
 }
 
-export const defaultNotionBlocksParser = (blocks: BlockWithChildren[]) => {
+export const defaultNotionBlocksParser = (
+  blocks: BlockWithChildren[],
+  verbose: boolean = false
+) => {
   const parsedBlocks: React.ReactNode[] = [];
   const typesToGroup = ["numbered_list_item", "bulleted_list_item"] as const;
   type GroupedBlock = Extract<
@@ -38,30 +41,36 @@ export const defaultNotionBlocksParser = (blocks: BlockWithChildren[]) => {
 
     if (groupBlock.length > 0) {
       parsedBlocks.push(
-        defaultNotionBlockParser({
-          groupType: groupBlock[0].type,
-          groupedBlocks: groupBlock,
-        })
+        defaultNotionBlockParser(
+          {
+            groupType: groupBlock[0].type,
+            groupedBlocks: groupBlock,
+          },
+          verbose
+        )
       );
       groupBlock = [];
       lastTypeSeen = undefined;
     }
 
-    parsedBlocks.push(defaultNotionBlockParser(block));
+    parsedBlocks.push(defaultNotionBlockParser(block, verbose));
   }
 
   if (groupBlock.length > 0) {
     parsedBlocks.push(
-      defaultNotionBlockParser({
-        groupType: groupBlock[0].type,
-        groupedBlocks: groupBlock,
-      })
+      defaultNotionBlockParser(
+        {
+          groupType: groupBlock[0].type,
+          groupedBlocks: groupBlock,
+        },
+        verbose
+      )
     );
   }
   return parsedBlocks;
 };
 
-export const defaultNotionBlockParser = (block: Block, verbose?: boolean) => {
+export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
   if ("groupType" in block) {
     if (block.groupType === "numbered_list_item")
       return (

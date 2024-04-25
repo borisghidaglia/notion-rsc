@@ -1,8 +1,5 @@
-- intégration des éléments Tailwind prose (warning: code)
-- figure & figcaption
-- demo leerob
-- boucles infinies page dans page?
-
-- dark and light theme avec tailwind
-
-- intégrations: uploadthing, aws
+Issue?  
+What happens if I run `npx notion-rsc sync` but don't render an image of type "file"?  
+The thing is that the url in notionData is a Notion S3 link with an expiration duration (1h).  
+And we save images locally only when the image is about to be rendered (not good).  
+Hence, I suspect that running the command and waiting 1h+ before rendering the data (aka calling createNotionComponent) will break.

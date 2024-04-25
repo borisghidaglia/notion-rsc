@@ -70,12 +70,27 @@ async function fetchPagesData(client: Client, ids: string[]) {
 async function fetchDatabasesData(client: Client, ids: string[]) {
   const data: Record<
     string,
-    { query: QueryDatabaseResponse; retrieve: GetDatabaseResponse }
+    {
+      query: QueryDatabaseResponse & {
+        results: (QueryDatabaseResponse["results"][number] & {
+          blocks?: BlockObjectResponseWithChildren[];
+        })[];
+      };
+      retrieve: GetDatabaseResponse;
+    }
   > = {};
   for (const id of ids) {
     console.log(`Fetching database ${id}...`);
+    const queryDbResponse = await client.databases.query({ database_id: id });
+    const resultsWithBlocks: (QueryDatabaseResponse["results"][number] & {
+      blocks?: BlockObjectResponseWithChildren[];
+    })[] = [];
+    for (const res of queryDbResponse.results) {
+      const blocks = await getBlocksRecursively(client, res.id);
+      resultsWithBlocks.push({ ...res, blocks });
+    }
     data[id] = {
-      query: await client.databases.query({ database_id: id }),
+      query: { ...queryDbResponse, results: resultsWithBlocks },
       retrieve: await client.databases.retrieve({ database_id: id }),
     };
   }

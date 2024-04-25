@@ -34,11 +34,11 @@ export function createNotionComponents(parsers?: {
     databaseComponents.push([
       `Database${getDatabaseName(notionData as unknown as Parameters<typeof getDatabaseName>[0], k)}` as keyof DatabaseParsers,
       () => {
-        const properties = v.query.results.map((res) => {
+        const params = v.query.results.map((res) => {
           if (!("properties" in res)) return null;
-          return res.properties;
+          return { ...res.properties, blocks: res.blocks };
         });
-        return parser(properties as Parameters<typeof parser>[0]);
+        return parser(params as Parameters<typeof parser>[0]);
       },
     ]);
   });
