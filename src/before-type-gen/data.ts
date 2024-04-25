@@ -9,12 +9,11 @@ import { execSync } from "child_process";
 import { writeFileSync } from "fs";
 import { join } from "path";
 import { format } from "prettier";
-import { cwd } from "process";
-
-export const NOTION_DATA_PATH = join(
-  cwd(),
-  "/node_modules/.notion-rsc/notion-data.ts"
-);
+import {
+  dotNotionRscSourceModulePath,
+  dotNotionRscUserPath,
+  notionDataFileName,
+} from "./cli";
 
 export async function fetchNotionData(
   client: Client,
@@ -28,8 +27,26 @@ export async function fetchNotionData(
     `export const notionData = ${JSON.stringify(data)} as const;`,
     { parser: "typescript" }
   );
-  writeFileSync(NOTION_DATA_PATH, formattedDataStr);
-  execSync(`tsc ${NOTION_DATA_PATH}`);
+
+  writeFileSync(
+    join(dotNotionRscUserPath, notionDataFileName),
+    formattedDataStr
+  );
+
+  execSync(`tsc ${notionDataFileName}`, {
+    cwd: dotNotionRscUserPath,
+  });
+
+  if (process.env.NOTION_RSC_ENV === "dev") {
+    writeFileSync(
+      join(dotNotionRscSourceModulePath, notionDataFileName),
+      formattedDataStr
+    );
+    execSync(`tsc ${notionDataFileName}`, {
+      cwd: dotNotionRscSourceModulePath,
+    });
+  }
+
   return data;
 }
 

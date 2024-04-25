@@ -3,18 +3,18 @@ import {
   isFullPage,
   isFullPageOrDatabase,
 } from "@notionhq/client";
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "fs";
+import { appendFileSync, readFileSync, writeFileSync } from "fs";
+import { join } from "path";
 import { format } from "prettier";
 
 import { PageObjectReponseProperties } from "../notion-properties";
 import { NotionRscConfig } from "../types";
 import { getDatabaseName, getPageName } from "../utils";
+import {
+  dotNotionRscSourceModulePath,
+  dotNotionRscUserPath,
+  generatedTypesFileName,
+} from "./cli";
 import { fetchNotionData } from "./data";
 
 export async function createSchema() {
@@ -30,13 +30,16 @@ export async function createSchema() {
     fetch: fetch,
   });
 
-  if (!existsSync("./node_modules/.notion-rsc/")) {
-    mkdirSync("./node_modules/.notion-rsc/");
-  }
-
   const notionData = await fetchNotionData(notionClient, pageIds, databaseIds);
 
-  writeFileSync("./node_modules/.notion-rsc/generated-types.ts", "");
+  writeFileSync(join(dotNotionRscUserPath, generatedTypesFileName), "");
+
+  if (process.env.NOTION_RSC_ENV === "dev") {
+    writeFileSync(
+      join(dotNotionRscSourceModulePath, generatedTypesFileName),
+      ""
+    );
+  }
 
   const tsCodeStr: string[] = [];
 
@@ -106,10 +109,20 @@ export async function createSchema() {
   });
 
   appendFileSync(
-    "./node_modules/.notion-rsc/generated-types.ts",
+    join(dotNotionRscUserPath, generatedTypesFileName),
     formattedTsCodeStr,
     {
       encoding: "utf-8",
     }
   );
+
+  if (process.env.NOTION_RSC_ENV === "dev") {
+    appendFileSync(
+      join(dotNotionRscSourceModulePath, generatedTypesFileName),
+      formattedTsCodeStr,
+      {
+        encoding: "utf-8",
+      }
+    );
+  }
 }

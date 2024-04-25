@@ -2,13 +2,27 @@
 // TODO: remove --no-deprecation when punycode warning is fixed
 
 import { Command } from "commander";
-import { readFileSync, unlinkSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "fs";
 import { join } from "path";
 import { cwd } from "process";
 
 import { execSync } from "child_process";
 import * as dotenv from "dotenv";
 import { createSchema } from "./createSchema";
+
+export const dotNotionRscUserPath = join(cwd(), "./node_modules/.notion-rsc/");
+export const dotNotionRscSourceModulePath = join(
+  cwd(),
+  "./node_modules/notion-rsc/node_modules/.notion-rsc"
+);
+export const generatedTypesFileName = "generatedTypes.ts";
+export const notionDataFileName = "notionData.ts";
 
 const program = new Command();
 
@@ -31,6 +45,26 @@ program
     console.log("Syncing...");
     // Load the .env.local file to get the notion api key
     dotenv.config({ path: join(cwd(), ".env.local") });
+
+    // Create the .notion-rsc directory
+    if (!existsSync(dotNotionRscUserPath)) {
+      mkdirSync(dotNotionRscUserPath);
+    }
+    // In dev, we will create generated-types.ts and notionData.ts both
+    // in user's node_modules and in notion-rsc node_modules.
+    //
+    // That's because when notion-rsc has been installed using:
+    //
+    // npm install <path> --prefix .
+    //
+    // Then when importing generatedTypes or notioData from .notion-rsc/
+    // inside createNotionComponents.tsx, the import is relative to the
+    // module instead of the user directory.
+    if (process.env.NOTION_RSC_ENV === "dev") {
+      if (!existsSync(dotNotionRscSourceModulePath)) {
+        mkdirSync(dotNotionRscSourceModulePath);
+      }
+    }
 
     // Compile user config and move the result to our module directory
     execSync(`tsc ${join(cwd(), "/notion-rsc.config.ts")}`);

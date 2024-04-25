@@ -1,5 +1,5 @@
-import { DatabaseParsers, PageParsers } from ".notion-rsc/generated-types";
-import { notionData } from ".notion-rsc/notion-data";
+import { DatabaseParsers, PageParsers } from ".notion-rsc/generatedTypes";
+import { notionData } from ".notion-rsc/notionData";
 import { defaultParser } from "../parsers";
 import { getDatabaseName, getPageName } from "../utils";
 

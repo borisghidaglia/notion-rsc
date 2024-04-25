@@ -2,11 +2,10 @@ import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { Fragment } from "react";
 
-import { Client, collectPaginatedAPI, isFullBlock } from "@notionhq/client";
+import { Client } from "@notionhq/client";
 import {
   BlockObjectResponse,
   PageObjectResponse,
-  PartialBlockObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
