@@ -1,6 +1,5 @@
 import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
 import {
-  BlockObjectResponse,
   GetDatabaseResponse,
   GetPageResponse,
   QueryDatabaseResponse,
@@ -9,6 +8,8 @@ import { execSync } from "child_process";
 import { writeFileSync } from "fs";
 import { join } from "path";
 import { format } from "prettier";
+
+import { BlockWithChildren } from "../types";
 import {
   dotNotionRscSourceModulePath,
   dotNotionRscUserPath,
@@ -23,10 +24,13 @@ export async function fetchNotionData(
   const pagesData = await fetchPagesData(client, pageIds);
   const databasesData = await fetchDatabasesData(client, databaseIds);
   const data = { pages: pagesData, databases: databasesData };
-  const formattedDataStr = await format(
-    `export const notionData = ${JSON.stringify(data)} as const;`,
-    { parser: "typescript" }
-  );
+  const importsStr = `import { GetPageResponse } from "@notionhq/client/build/src/api-endpoints";
+    import { BlockWithChildren } from "notion-rsc/src/types";
+  \n\n`;
+  const dataStr = `export const notionData = ${JSON.stringify(data)} as const;`;
+  const formattedDataStr = await format(importsStr + dataStr, {
+    parser: "typescript",
+  });
 
   writeFileSync(
     join(dotNotionRscUserPath, notionDataFileName),
@@ -53,16 +57,13 @@ export async function fetchNotionData(
 async function fetchPagesData(client: Client, ids: string[]) {
   const data: Record<
     string,
-    GetPageResponse & { blocks: BlockObjectResponseWithChildren[] }
+    GetPageResponse & { blocks: BlockWithChildren[] }
   > = {};
   for (const id of ids) {
     console.log(`Fetching page ${id}...`);
     const page = await client.pages.retrieve({ page_id: id });
     const blocks = await getBlocksRecursively(client, id);
-    data[id] = {
-      ...page,
-      blocks,
-    };
+    data[id] = { ...page, blocks };
   }
   return data;
 }
@@ -73,7 +74,7 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
     {
       query: QueryDatabaseResponse & {
         results: (QueryDatabaseResponse["results"][number] & {
-          blocks?: BlockObjectResponseWithChildren[];
+          blocks?: BlockWithChildren[];
         })[];
       };
       retrieve: GetDatabaseResponse;
@@ -83,7 +84,7 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
     console.log(`Fetching database ${id}...`);
     const queryDbResponse = await client.databases.query({ database_id: id });
     const resultsWithBlocks: (QueryDatabaseResponse["results"][number] & {
-      blocks?: BlockObjectResponseWithChildren[];
+      blocks?: BlockWithChildren[];
     })[] = [];
     for (const res of queryDbResponse.results) {
       const blocks = await getBlocksRecursively(client, res.id);
@@ -98,7 +99,7 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
 }
 
 async function getBlocksRecursively(client: Client, blockId: string) {
-  const blocks: BlockObjectResponseWithChildren[] = [];
+  const blocks: BlockWithChildren[] = [];
   for await (const block of iteratePaginatedAPI(client.blocks.children.list, {
     block_id: blockId,
   })) {
@@ -113,7 +114,3 @@ async function getBlocksRecursively(client: Client, blockId: string) {
   }
   return blocks;
 }
-
-type BlockObjectResponseWithChildren = BlockObjectResponse & {
-  children?: BlockObjectResponse[];
-};

@@ -1,6 +1,7 @@
 import { DatabaseParsers, PageParsers } from ".notion-rsc/generatedTypes";
 import { notionData } from ".notion-rsc/notionData";
-import { defaultParser } from "../parsers";
+import { defaultNotionBlocksParser, defaultParser } from "../parsers";
+import { BlockWithChildren } from "../types";
 import { getDatabaseName, getPageName } from "../utils";
 
 export function createNotionComponents(parsers?: {
@@ -19,6 +20,9 @@ export function createNotionComponents(parsers?: {
       () =>
         parser({
           ...pageData.properties,
+          content: defaultNotionBlocksParser(
+            pageData.blocks as unknown as BlockWithChildren[]
+          ),
           blocks: pageData.blocks,
         } as Parameters<typeof parser>[0]),
     ]);
@@ -36,7 +40,13 @@ export function createNotionComponents(parsers?: {
       () => {
         const params = v.query.results.map((res) => {
           if (!("properties" in res)) return null;
-          return { ...res.properties, blocks: res.blocks };
+          return {
+            ...res.properties,
+            content: defaultNotionBlocksParser(
+              res.blocks as unknown as BlockWithChildren[]
+            ),
+            blocks: res.blocks,
+          };
         });
         return parser(params as Parameters<typeof parser>[0]);
       },

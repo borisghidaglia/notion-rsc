@@ -74,6 +74,7 @@ export async function createSchema() {
         ];
       tsCodeStr.push(`"${property}": ${typeStr};`);
     }
+    tsCodeStr.push(`content: React.ReactNode;`);
     tsCodeStr.push(
       `blocks: (BlockObjectResponse & { children?: BlockObjectResponse[] })[];`
     );
@@ -93,6 +94,7 @@ export async function createSchema() {
         ];
       tsCodeStr.push(`"${property}": ${typeStr};`);
     }
+    tsCodeStr.push(`content: React.ReactNode;`);
     tsCodeStr.push(
       `blocks: (BlockObjectResponse & { children?: BlockObjectResponse[] })[];`
     );

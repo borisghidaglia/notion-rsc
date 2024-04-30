@@ -8,6 +8,7 @@ import {
   PageObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
+import { BlockWithChildren } from "./types";
 
 export function defaultParser(pageOrDatabase: any) {
   return <pre>{JSON.stringify(pageOrDatabase, null, 2)}</pre>;
@@ -250,10 +251,6 @@ export type Block =
       groupType: "numbered_list_item" | "bulleted_list_item";
       groupedBlocks: BlockWithChildren[];
     };
-
-type BlockWithChildren = BlockObjectResponse & {
-  children?: BlockObjectResponse[];
-};
 
 export type BlocksParser = (
   client: Client,
