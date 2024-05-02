@@ -25,9 +25,12 @@ export type NotionDatabaseSatisfies = {
   retrieve: NotionDatabaseRetrieveSatisfies;
 };
 
-type NotionDatabaseQuerySatisfies = QueryDatabaseResponse & {
+type NotionDatabaseQuerySatisfies = OmitOverUnionMembers<
+  QueryDatabaseResponse,
+  "results"
+> & {
   results: (QueryDatabaseResponse["results"][number] & {
-    blocks?: BlockWithChildren[];
+    blocks: BlockWithChildren[];
   })[];
 } & { request_id: string };
 

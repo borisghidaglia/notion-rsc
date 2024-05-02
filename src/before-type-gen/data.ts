@@ -1,15 +1,14 @@
 import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
-import {
-  GetDatabaseResponse,
-  GetPageResponse,
-  QueryDatabaseResponse,
-} from "@notionhq/client/build/src/api-endpoints";
 import { execSync } from "child_process";
 import { writeFileSync } from "fs";
 import { join } from "path";
 import { format } from "prettier";
 
-import { BlockWithChildren } from "../types";
+import {
+  BlockWithChildren,
+  NotionDatabaseSatisfies,
+  NotionPageSatisfiesType,
+} from "../types";
 import {
   dotNotionRscSourceModulePath,
   dotNotionRscUserPath,
@@ -63,13 +62,17 @@ export async function fetchNotionData(
 }
 
 async function fetchPagesData(client: Client, ids: string[]) {
-  const data: Record<
-    string,
-    GetPageResponse & { blocks: BlockWithChildren[] }
-  > = {};
+  const data: Record<string, NotionPageSatisfiesType> = {};
   for (const id of ids) {
     console.log(`Fetching page ${id}...`);
-    const page = await client.pages.retrieve({ page_id: id });
+    // Today GetPageResponse (which the retrieve function returns) is
+    // missing request_id. This explains the type assertion.
+    // TODO: remove this when Notion types are fixed
+    //
+    // https://github.com/makenotion/notion-sdk-js/issues/505
+    const page = (await client.pages.retrieve({
+      page_id: id,
+    })) as NotionPageSatisfiesType;
     const blocks = await getBlocksRecursively(client, id);
     data[id] = { ...page, blocks };
   }
@@ -77,30 +80,32 @@ async function fetchPagesData(client: Client, ids: string[]) {
 }
 
 async function fetchDatabasesData(client: Client, ids: string[]) {
-  const data: Record<
-    string,
-    {
-      query: QueryDatabaseResponse & {
-        results: (QueryDatabaseResponse["results"][number] & {
-          blocks?: BlockWithChildren[];
-        })[];
-      };
-      retrieve: GetDatabaseResponse;
-    }
-  > = {};
+  const data: Record<string, NotionDatabaseSatisfies> = {};
   for (const id of ids) {
     console.log(`Fetching database ${id}...`);
-    const queryDbResponse = await client.databases.query({ database_id: id });
-    const resultsWithBlocks: (QueryDatabaseResponse["results"][number] & {
-      blocks?: BlockWithChildren[];
-    })[] = [];
+    // Today QueryDatabaseResponse (which the query function returns) is
+    // missing request_id. This explains the type assertion.
+    // TODO: remove this when Notion types are fixed
+    //
+    // https://github.com/makenotion/notion-sdk-js/issues/505
+    const queryDbResponse = (await client.databases.query({
+      database_id: id,
+    })) as NotionDatabaseSatisfies["query"];
+    const resultsWithBlocks: NotionDatabaseSatisfies["query"]["results"] = [];
     for (const res of queryDbResponse.results) {
       const blocks = await getBlocksRecursively(client, res.id);
       resultsWithBlocks.push({ ...res, blocks });
     }
     data[id] = {
       query: { ...queryDbResponse, results: resultsWithBlocks },
-      retrieve: await client.databases.retrieve({ database_id: id }),
+      // Today GetDatabaseResponse (which the retrieve function returns) is
+      // missing request_id. This explains the type assertion.
+      // TODO: remove this when Notion types are fixed
+      //
+      // https://github.com/makenotion/notion-sdk-js/issues/505
+      retrieve: (await client.databases.retrieve({
+        database_id: id,
+      })) as NotionDatabaseSatisfies["retrieve"],
     };
   }
   return data;

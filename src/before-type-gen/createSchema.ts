@@ -9,7 +9,7 @@ import { format } from "prettier";
 
 import { PageObjectReponseProperties } from "../notion-properties";
 import { NotionRscConfig } from "../types";
-import { getDatabaseName, getPageName } from "../utils";
+import { getDatabaseTypeName, getPageTypeName } from "../utils";
 import {
   dotNotionRscSourceModulePath,
   dotNotionRscUserPath,
@@ -46,24 +46,23 @@ export async function createSchema() {
   // Parsers
   tsCodeStr.push(`export type PageParsers = {`);
   for (const id of pageIds) {
-    const pageName = getPageName(notionData, id);
-    tsCodeStr.push(
-      `Page${pageName}?: (page: Page${pageName}) => React.ReactNode;`
-    );
+    const page = notionData.pages[id];
+    const pageName = getPageTypeName(page);
+    tsCodeStr.push(`${pageName}?: (page: ${pageName}) => React.ReactNode;`);
   }
   tsCodeStr.push(`};\n\n`);
   tsCodeStr.push(`export type DatabaseParsers = {`);
   for (const id of databaseIds) {
-    const databaseName = getDatabaseName(notionData, id);
+    const databaseName = getDatabaseTypeName(notionData.databases[id]);
     tsCodeStr.push(
-      `Database${databaseName}?: (entries: Database${databaseName}[]) => React.ReactNode;`
+      `${databaseName}?: (entries: ${databaseName}[]) => React.ReactNode;`
     );
   }
   tsCodeStr.push(`};\n\n`);
 
   // Page Types
   for (const id of pageIds) {
-    tsCodeStr.push(`type Page${getPageName(notionData, id)} = {`);
+    tsCodeStr.push(`type ${getPageTypeName(notionData.pages[id])} = {`);
     const pageData = notionData.pages[id];
     if (!isFullPage(pageData)) return;
     for (const property of Object.keys(pageData.properties)) {
@@ -83,7 +82,7 @@ export async function createSchema() {
 
   // Database Types
   for (const id of databaseIds) {
-    tsCodeStr.push(`type Database${getDatabaseName(notionData, id)} = {`);
+    tsCodeStr.push(`type ${getDatabaseTypeName(notionData.databases[id])} = {`);
     const databaseData = notionData.databases[id].query.results[0];
     if (!isFullPageOrDatabase(databaseData)) return;
     for (const property of Object.keys(databaseData.properties)) {

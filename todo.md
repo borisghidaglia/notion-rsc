@@ -2,9 +2,11 @@
 
 1. [x] Make sure description is not required in the properties type of notion (see notionData)
 2. [x] Generate notionData with the appropriate `satsifies` annotations (see data.ts)
-3. [ ] Make sure `createPageComponent` works after running `notion-rsc sync`
-4. [ ] Create the `createDatabaseComponent` function
-5. [ ] Refactor the `createNotionComponents` function
+3. [x] Make sure `createPageComponent` works after running `notion-rsc sync`
+4. [x] Make sure `createNotionComponents` works after running `notion-rsc sync`
+5. [ ] Create the `createDatabaseComponent` function
+6. [ ] Refactor the `createNotionComponents` function
+7. [ ] Fix React warnings in console
 
 # Issue?
 

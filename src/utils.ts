@@ -1,30 +1,27 @@
-import { GetDatabaseResponse } from "@notionhq/client/build/src/api-endpoints";
+import { DatabaseParsers, PageParsers } from ".notion-rsc/generatedTypes";
+import { NotionDatabaseSatisfies, NotionPageSatisfiesType } from "./types";
 
-export const getPageName = <T extends { pages: Record<string, any> }>(
-  data: T,
-  pageId: keyof typeof data.pages
-) => {
-  const page = data.pages[pageId];
+// TODO: can we get rid of this assertion?
+export const getPageTypeName = (
+  page: NotionPageSatisfiesType
+): keyof PageParsers => `Page${getPageName(page)}` as keyof PageParsers;
+
+const getPageName = (page: NotionPageSatisfiesType) => {
   return "properties" in page &&
     page.properties.title.type === "title" &&
     page.properties.title.title[0].plain_text
-    ? page.properties.title.title[0].plain_text.replaceAll(" ", "")
-    : pageId;
+    ? page.properties.title.title[0].plain_text.replace(/\s/g, "")
+    : page.id;
 };
 
-export const getDatabaseName = <
-  T extends {
-    databases: Record<
-      string,
-      { retrieve: GetDatabaseResponse } & Record<string, any>
-    >;
-  },
->(
-  data: T,
-  databaseId: keyof typeof data.databases
-) => {
-  const database = data.databases[databaseId];
+// TODO: can we get rid of this assertion?
+export const getDatabaseTypeName = (
+  database: NotionDatabaseSatisfies
+): keyof DatabaseParsers =>
+  `Database${getDatabaseName(database)}` as keyof DatabaseParsers;
+
+const getDatabaseName = (database: NotionDatabaseSatisfies) => {
   return "title" in database.retrieve
     ? database.retrieve.title[0].plain_text.replace(/\s/g, "")
-    : databaseId;
+    : database.retrieve.id;
 };
