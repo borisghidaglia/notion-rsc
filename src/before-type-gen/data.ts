@@ -24,11 +24,19 @@ export async function fetchNotionData(
   const pagesData = await fetchPagesData(client, pageIds);
   const databasesData = await fetchDatabasesData(client, databaseIds);
   const data = { pages: pagesData, databases: databasesData };
-  const importsStr = `import { GetPageResponse } from "@notionhq/client/build/src/api-endpoints";
-    import { BlockWithChildren } from "notion-rsc/src/types";
-  \n\n`;
-  const dataStr = `export const notionData = ${JSON.stringify(data)} as const;`;
-  const formattedDataStr = await format(importsStr + dataStr, {
+  const notionDataStr = `
+    import { NotionDatabaseSatisfies, NotionPageSatisfiesType } from ".notion-rsc/types";
+
+    export const notionData = {
+      pages: {
+        ${Object.entries(data.pages).map(([k, v]) => `"${k}": ${JSON.stringify(v)} satisfies NotionPageSatisfiesType`)}
+      },
+      databases: {
+        ${Object.entries(data.databases).map(([k, v]) => `"${k}": ${JSON.stringify(v)} satisfies NotionDatabaseSatisfies`)}
+      }
+    };`;
+
+  const formattedDataStr = await format(notionDataStr, {
     parser: "typescript",
   });
 

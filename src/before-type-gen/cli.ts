@@ -17,9 +17,10 @@ import * as dotenv from "dotenv";
 import { createSchema } from "./createSchema";
 
 export const dotNotionRscUserPath = join(cwd(), "./node_modules/.notion-rsc/");
+const sourceModulePath = join(cwd(), "./node_modules/notion-rsc");
 export const dotNotionRscSourceModulePath = join(
-  cwd(),
-  "./node_modules/notion-rsc/node_modules/.notion-rsc"
+  sourceModulePath,
+  "/node_modules/.notion-rsc"
 );
 export const generatedTypesFileName = "generatedTypes.ts";
 export const notionDataFileName = "notionData.ts";
@@ -46,9 +47,10 @@ program
     // Load the .env.local file to get the notion api key
     dotenv.config({ path: join(cwd(), ".env.local") });
 
-    // Create the .notion-rsc directory
+    // Create the .notion-rsc directory and copy the types file
     if (!existsSync(dotNotionRscUserPath)) {
       mkdirSync(dotNotionRscUserPath);
+      copyTypesFileTo(dotNotionRscUserPath);
     }
     // In dev, we will create generated-types.ts and notionData.ts both
     // in user's node_modules and in notion-rsc node_modules.
@@ -63,6 +65,7 @@ program
     if (process.env.NOTION_RSC_ENV === "dev") {
       if (!existsSync(dotNotionRscSourceModulePath)) {
         mkdirSync(dotNotionRscSourceModulePath);
+        copyTypesFileTo(dotNotionRscSourceModulePath);
       }
     }
 
@@ -90,4 +93,10 @@ function init() {
     join(__dirname, "../src/notion-rsc.config.ts")
   );
   writeFileSync(join(cwd(), "/notion-rsc.config.ts"), initialConfig);
+}
+
+function copyTypesFileTo(to: string) {
+  const types = readFileSync(join(sourceModulePath, "./src/types.ts"));
+  const path = join(to, "/types.ts");
+  writeFileSync(path, types);
 }
