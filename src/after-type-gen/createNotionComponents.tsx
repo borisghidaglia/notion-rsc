@@ -1,11 +1,7 @@
 import { DatabaseParsers, PageParsers } from ".notion-rsc/generatedTypes";
 import { notionData } from ".notion-rsc/notionData";
 import { defaultNotionBlocksParser, defaultParser } from "../parsers";
-import {
-  BlockWithChildren,
-  NotionDatabaseSatisfies,
-  NotionPageSatisfiesType,
-} from "../types";
+import { NotionDatabaseSatisfiesType, NotionPageSatisfiesType } from "../types";
 import { getDatabaseTypeName, getPageTypeName } from "../utils";
 
 export function createNotionComponents(parsers?: {
@@ -52,7 +48,7 @@ export function createNotionComponents(parsers?: {
   Object.entries(
     notionData.databases as Record<
       keyof typeof notionData.databases,
-      NotionDatabaseSatisfies
+      NotionDatabaseSatisfiesType
     >
   ).map(([databaseId, databaseData]) => {
     // Assertion used because Oject.entries above loses the key type

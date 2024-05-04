@@ -1,5 +1,5 @@
 import { DatabaseParsers, PageParsers } from ".notion-rsc/generatedTypes";
-import { NotionDatabaseSatisfies, NotionPageSatisfiesType } from "./types";
+import { NotionDatabaseSatisfiesType, NotionPageSatisfiesType } from "./types";
 
 // TODO: can we get rid of this assertion?
 export const getPageTypeName = (
@@ -16,11 +16,11 @@ const getPageName = (page: NotionPageSatisfiesType) => {
 
 // TODO: can we get rid of this assertion?
 export const getDatabaseTypeName = (
-  database: NotionDatabaseSatisfies
+  database: NotionDatabaseSatisfiesType
 ): keyof DatabaseParsers =>
   `Database${getDatabaseName(database)}` as keyof DatabaseParsers;
 
-const getDatabaseName = (database: NotionDatabaseSatisfies) => {
+const getDatabaseName = (database: NotionDatabaseSatisfiesType) => {
   return "title" in database.retrieve
     ? database.retrieve.title[0].plain_text.replace(/\s/g, "")
     : database.retrieve.id;

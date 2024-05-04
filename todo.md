@@ -4,9 +4,12 @@
 2. [x] Generate notionData with the appropriate `satsifies` annotations (see data.ts)
 3. [x] Make sure `createPageComponent` works after running `notion-rsc sync`
 4. [x] Make sure `createNotionComponents` works after running `notion-rsc sync`
-5. [ ] Create the `createDatabaseComponent` function
+5. [x] Create the `createDatabaseComponent` function
 6. [ ] Refactor the `createNotionComponents` function
 7. [ ] Fix React warnings in console
+
+...  
+ X. [ ] Change parser terminology to renderer terminology?
 
 # Issue?
 
@@ -17,4 +20,5 @@ Hence, I suspect that running the command and waiting 1h+ before rendering the d
 
 # Questions
 
-- Do I even need to `tsc notionData.ts` ?
+- Do I even need to `tsc notionData.ts`?
+- Why tf `prose prose-invert` works on `defaultParser`?

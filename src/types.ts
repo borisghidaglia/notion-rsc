@@ -20,7 +20,7 @@ export type NotionPageSatisfiesType = GetPageResponse & {
   blocks: BlockWithChildren[];
 };
 
-export type NotionDatabaseSatisfies = {
+export type NotionDatabaseSatisfiesType = {
   query: NotionDatabaseQuerySatisfies;
   retrieve: NotionDatabaseRetrieveSatisfies;
 };

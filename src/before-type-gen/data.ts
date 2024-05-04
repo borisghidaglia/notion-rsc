@@ -6,7 +6,7 @@ import { format } from "prettier";
 
 import {
   BlockWithChildren,
-  NotionDatabaseSatisfies,
+  NotionDatabaseSatisfiesType,
   NotionPageSatisfiesType,
 } from "../types";
 import {
@@ -24,14 +24,14 @@ export async function fetchNotionData(
   const databasesData = await fetchDatabasesData(client, databaseIds);
   const data = { pages: pagesData, databases: databasesData };
   const notionDataStr = `
-    import { NotionDatabaseSatisfies, NotionPageSatisfiesType } from ".notion-rsc/types";
+    import { NotionDatabaseSatisfiesType, NotionPageSatisfiesType } from ".notion-rsc/types";
 
     export const notionData = {
       pages: {
         ${Object.entries(data.pages).map(([k, v]) => `"${k}": ${JSON.stringify(v)} satisfies NotionPageSatisfiesType`)}
       },
       databases: {
-        ${Object.entries(data.databases).map(([k, v]) => `"${k}": ${JSON.stringify(v)} satisfies NotionDatabaseSatisfies`)}
+        ${Object.entries(data.databases).map(([k, v]) => `"${k}": ${JSON.stringify(v)} satisfies NotionDatabaseSatisfiesType`)}
       }
     };`;
 
@@ -80,7 +80,7 @@ async function fetchPagesData(client: Client, ids: string[]) {
 }
 
 async function fetchDatabasesData(client: Client, ids: string[]) {
-  const data: Record<string, NotionDatabaseSatisfies> = {};
+  const data: Record<string, NotionDatabaseSatisfiesType> = {};
   for (const id of ids) {
     console.log(`Fetching database ${id}...`);
     // Today QueryDatabaseResponse (which the query function returns) is
@@ -90,8 +90,9 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
     // https://github.com/makenotion/notion-sdk-js/issues/505
     const queryDbResponse = (await client.databases.query({
       database_id: id,
-    })) as NotionDatabaseSatisfies["query"];
-    const resultsWithBlocks: NotionDatabaseSatisfies["query"]["results"] = [];
+    })) as NotionDatabaseSatisfiesType["query"];
+    const resultsWithBlocks: NotionDatabaseSatisfiesType["query"]["results"] =
+      [];
     for (const res of queryDbResponse.results) {
       const blocks = await getBlocksRecursively(client, res.id);
       resultsWithBlocks.push({ ...res, blocks });
@@ -105,7 +106,7 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
       // https://github.com/makenotion/notion-sdk-js/issues/505
       retrieve: (await client.databases.retrieve({
         database_id: id,
-      })) as NotionDatabaseSatisfies["retrieve"],
+      })) as NotionDatabaseSatisfiesType["retrieve"],
     };
   }
   return data;

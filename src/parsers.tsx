@@ -10,8 +10,14 @@ import {
 } from "@notionhq/client/build/src/api-endpoints";
 import { BlockWithChildren } from "./types";
 
-export function defaultParser(pageOrDatabase: any) {
-  return <pre>{JSON.stringify(pageOrDatabase, null, 2)}</pre>;
+export function defaultParser<T extends { blocks: BlockWithChildren[] }>({
+  blocks,
+}: T) {
+  return (
+    <div className="prose prose-invert">
+      {defaultNotionBlocksParser(blocks)}
+    </div>
+  );
 }
 
 export const defaultNotionBlocksParser = (
