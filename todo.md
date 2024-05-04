@@ -5,7 +5,7 @@
 3. [x] Make sure `createPageComponent` works after running `notion-rsc sync`
 4. [x] Make sure `createNotionComponents` works after running `notion-rsc sync`
 5. [x] Create the `createDatabaseComponent` function
-6. [ ] Refactor the `createNotionComponents` function
+6. [x] Refactor the `createNotionComponents` function
 7. [ ] Fix React warnings in console
 
 ...  

@@ -25,7 +25,7 @@ export function createDatabaseComponent<T extends keyof DatabaseParsers>(
   // databaseData might not contain "properties" at this point.
   const wideDatabaseData = narrowDatabaseData as NotionDatabaseSatisfiesType;
 
-  const entries = wideDatabaseData.query.results.map((entry, idx) => {
+  const entries = wideDatabaseData.query.results.map((entry) => {
     if (
       (entry.object === "page" && !("properties" in entry)) ||
       (entry.object === "database" && !("title" in entry))
