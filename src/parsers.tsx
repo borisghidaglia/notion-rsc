@@ -81,13 +81,13 @@ export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
   if ("groupType" in block) {
     if (block.groupType === "numbered_list_item")
       return (
-        <ol>
+        <ol key={block.groupedBlocks.map((b) => b.id).join("-")}>
           {block.groupedBlocks.map((b) => defaultNotionBlockParser(b, verbose))}
         </ol>
       );
     if (block.groupType === "bulleted_list_item")
       return (
-        <ul>
+        <ul key={block.groupedBlocks.map((b) => b.id).join("-")}>
           {block.groupedBlocks.map((b) => defaultNotionBlockParser(b, verbose))}
         </ul>
       );
@@ -112,45 +112,39 @@ export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
     );
   if (block.type === "paragraph") {
     return (
-      <>
-        <p key={block.id}>{parseRichTextArray(block.paragraph.rich_text)}</p>
+      <Fragment key={block.id}>
+        <p>{parseRichTextArray(block.paragraph.rich_text)}</p>
         {block.children && defaultNotionBlocksParser(block.children)}
-      </>
+      </Fragment>
     );
   }
   if (block.type === "numbered_list_item")
     return (
-      <>
-        <li key={block.id}>
-          {parseRichTextArray(block.numbered_list_item.rich_text)}
-        </li>
+      <Fragment key={block.id}>
+        <li>{parseRichTextArray(block.numbered_list_item.rich_text)}</li>
         {block.children && defaultNotionBlocksParser(block.children)}
-      </>
+      </Fragment>
     );
   if (block.type === "bulleted_list_item")
     return (
-      <>
-        <li key={block.id}>
-          {parseRichTextArray(block.bulleted_list_item.rich_text)}
-        </li>
+      <Fragment key={block.id}>
+        <li>{parseRichTextArray(block.bulleted_list_item.rich_text)}</li>
         {block.children && defaultNotionBlocksParser(block.children)}
-      </>
+      </Fragment>
     );
   if (block.type === "quote")
     return (
-      <>
-        <blockquote key={block.id}>
-          {parseRichTextArray(block.quote.rich_text)}
-        </blockquote>
+      <Fragment key={block.id}>
+        <blockquote>{parseRichTextArray(block.quote.rich_text)}</blockquote>
         {block.children && defaultNotionBlocksParser(block.children)}
-      </>
+      </Fragment>
     );
   if (block.type === "code") {
-    return <CodeComponent block={block} />;
+    return <CodeComponent block={block} key={block.id} />;
   }
   if (block.type === "table") {
     return (
-      <table>
+      <table key={block.id}>
         <tbody>
           {block.children && defaultNotionBlocksParser(block.children)}
         </tbody>
@@ -159,7 +153,7 @@ export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
   }
   if (block.type === "table_row") {
     return (
-      <tr>
+      <tr key={block.id}>
         {block.table_row.cells.map((cell) => (
           <td key={crypto.randomUUID()}>{parseRichTextArray(cell)}</td>
         ))}
@@ -171,7 +165,7 @@ export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
     if (block.image.type === "external")
       return <img key={block.id} src={block.image.external.url} />;
     if (block.image.type === "file") {
-      return <LocalImage url={block.image.file.url} />;
+      return <LocalImage url={block.image.file.url} key={block.id} />;
     }
   }
   return verbose ? (
