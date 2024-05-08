@@ -1,12 +1,6 @@
 # Current work
 
-1. [x] Make sure description is not required in the properties type of notion (see notionData)
-2. [x] Generate notionData with the appropriate `satsifies` annotations (see data.ts)
-3. [x] Make sure `createPageComponent` works after running `notion-rsc sync`
-4. [x] Make sure `createNotionComponents` works after running `notion-rsc sync`
-5. [x] Create the `createDatabaseComponent` function
-6. [x] Refactor the `createNotionComponents` function
-7. [ ] Fix React warnings in console
+1. [x] Deploy `notion-rsc` v0.0.5
 
 ...  
  X. [ ] Change parser terminology to renderer terminology?
