@@ -58,6 +58,10 @@ export function defaultDatabaseParser(
 
 export const defaultNotionBlocksParser = (
   blocks: BlockWithChildren[],
+  blockParser: (
+    block: Block,
+    verbose: boolean
+  ) => React.ReactNode = defaultNotionBlockParser,
   verbose: boolean = false
 ) => {
   const parsedBlocks: React.ReactNode[] = [];
@@ -84,7 +88,7 @@ export const defaultNotionBlocksParser = (
 
     if (groupBlock.length > 0) {
       parsedBlocks.push(
-        defaultNotionBlockParser(
+        blockParser(
           {
             groupType: groupBlock[0].type,
             groupedBlocks: groupBlock,
@@ -96,12 +100,12 @@ export const defaultNotionBlocksParser = (
       lastTypeSeen = undefined;
     }
 
-    parsedBlocks.push(defaultNotionBlockParser(block, verbose));
+    parsedBlocks.push(blockParser(block, verbose));
   }
 
   if (groupBlock.length > 0) {
     parsedBlocks.push(
-      defaultNotionBlockParser(
+      blockParser(
         {
           groupType: groupBlock[0].type,
           groupedBlocks: groupBlock,
