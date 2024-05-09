@@ -1,14 +1,16 @@
+import { Client, isFullPageOrDatabase } from "@notionhq/client";
+import {
+  BlockObjectResponse,
+  DatabaseObjectResponse,
+  PageObjectResponse,
+  RichTextItemResponse,
+} from "@notionhq/client/build/src/api-endpoints";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { Fragment } from "react";
 
-import { Client } from "@notionhq/client";
-import {
-  BlockObjectResponse,
-  PageObjectResponse,
-  RichTextItemResponse,
-} from "@notionhq/client/build/src/api-endpoints";
-import { BlockWithChildren } from "./types";
+import { notionData } from ".notion-rsc/notionData";
+import { BlockWithChildren, NotionDatabaseSatisfiesType } from "../types";
 
 export function defaultParser<T extends { blocks: BlockWithChildren[] }>({
   blocks,
@@ -17,6 +19,40 @@ export function defaultParser<T extends { blocks: BlockWithChildren[] }>({
     <div className="prose prose-invert">
       {defaultNotionBlocksParser(blocks)}
     </div>
+  );
+}
+
+type FullPageOrDbWithBlocks = (PageObjectResponse | DatabaseObjectResponse) & {
+  blocks: BlockWithChildren[];
+};
+export function defaultDatabaseParser(
+  dbQueryResults: NotionDatabaseSatisfiesType["query"]["results"]
+) {
+  // TODO: let the user know we filtered out partial results ?
+  const pageOrDbArray = dbQueryResults.filter(
+    (res): res is FullPageOrDbWithBlocks => isFullPageOrDatabase(res)
+  );
+  return (
+    <table>
+      <thead>
+        <tr>
+          {Object.keys(pageOrDbArray[0].properties).map((k) => (
+            <th key={k}>{k}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {pageOrDbArray.map((pageOrDb) => (
+          <tr key={pageOrDb.id}>
+            {Object.values(pageOrDb.properties).map(
+              (v: (typeof pageOrDb.properties)[1]) => (
+                <td key={v.id}>{JSON.stringify(v)}</td>
+              )
+            )}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -167,6 +203,17 @@ export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
     if (block.image.type === "file") {
       return <LocalImage url={block.image.file.url} key={block.id} />;
     }
+  }
+  if (block.type === "child_database") {
+    const db =
+      notionData.databases[
+        block.id.replace(/[\s-]/g, "") as keyof typeof notionData.databases
+      ];
+    if (!db)
+      throw new Error(
+        `Database ${block.id} not found in notionData. Did you run "npx notion-rsc sync"`
+      );
+    return defaultDatabaseParser(db.query.results);
   }
   return verbose ? (
     <div style={{ backgroundColor: "darkred", margin: "10px 0px 10px 0px" }}>

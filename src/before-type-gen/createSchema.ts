@@ -45,14 +45,14 @@ export async function createSchema() {
 
   // Parsers
   tsCodeStr.push(`export type PageParsers = {`);
-  for (const id of pageIds) {
+  for (const id of Object.keys(notionData.pages)) {
     const page = notionData.pages[id];
     const pageName = getPageTypeName(page);
     tsCodeStr.push(`${pageName}?: (page: ${pageName}) => React.ReactNode;`);
   }
   tsCodeStr.push(`};\n\n`);
   tsCodeStr.push(`export type DatabaseParsers = {`);
-  for (const id of databaseIds) {
+  for (const id of Object.keys(notionData.databases)) {
     const databaseName = getDatabaseTypeName(notionData.databases[id]);
     tsCodeStr.push(
       `${databaseName}?: (entries: ${databaseName}[]) => React.ReactNode;`
@@ -61,7 +61,7 @@ export async function createSchema() {
   tsCodeStr.push(`};\n\n`);
 
   // Page Types
-  for (const id of pageIds) {
+  for (const id of Object.keys(notionData.pages)) {
     tsCodeStr.push(`type ${getPageTypeName(notionData.pages[id])} = {`);
     const pageData = notionData.pages[id];
     if (!isFullPage(pageData)) return;
@@ -81,7 +81,7 @@ export async function createSchema() {
   }
 
   // Database Types
-  for (const id of databaseIds) {
+  for (const id of Object.keys(notionData.databases)) {
     tsCodeStr.push(`type ${getDatabaseTypeName(notionData.databases[id])} = {`);
     const databaseData = notionData.databases[id].query.results[0];
     if (!isFullPageOrDatabase(databaseData)) return;

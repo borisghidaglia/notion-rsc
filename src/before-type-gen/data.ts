@@ -20,8 +20,12 @@ export async function fetchNotionData(
   pageIds: string[],
   databaseIds: string[]
 ) {
-  const pagesData = await fetchPagesData(client, pageIds);
-  const databasesData = await fetchDatabasesData(client, databaseIds);
+  const { pagesData, databaseIds: databaseIdsFoundInPages } =
+    await fetchPagesData(client, pageIds);
+  const databasesData = await fetchDatabasesData(
+    client,
+    databaseIds.concat(databaseIdsFoundInPages)
+  );
   const data = { pages: pagesData, databases: databasesData };
   const notionDataStr = `
     import { NotionDatabaseSatisfiesType, NotionPageSatisfiesType } from ".notion-rsc/types";
@@ -62,7 +66,8 @@ export async function fetchNotionData(
 }
 
 async function fetchPagesData(client: Client, ids: string[]) {
-  const data: Record<string, NotionPageSatisfiesType> = {};
+  const pagesData: Record<string, NotionPageSatisfiesType> = {};
+  const databaseIds: string[] = [];
   for (const id of ids) {
     console.log(`Fetching page ${id}...`);
     // Today GetPageResponse (which the retrieve function returns) is
@@ -74,9 +79,18 @@ async function fetchPagesData(client: Client, ids: string[]) {
       page_id: id,
     })) as NotionPageSatisfiesType;
     const blocks = await getBlocksRecursively(client, id);
-    data[id] = { ...page, blocks };
+    for (const block of blocks) {
+      if (block.type === "child_database") {
+        // We remove the "-" because ids might be used as default type names
+        // and types can't contain "-"
+        // Also, ids in the notion-rsc config will most likely be without "-"
+        // because ids are displayed without them in Notion urls
+        databaseIds.push(block.id.replace(/-/g, ""));
+      }
+    }
+    pagesData[id] = { ...page, blocks };
   }
-  return data;
+  return { pagesData, databaseIds };
 }
 
 async function fetchDatabasesData(client: Client, ids: string[]) {

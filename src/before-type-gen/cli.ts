@@ -90,7 +90,7 @@ program.parse();
 
 function init() {
   const initialConfig = readFileSync(
-    join(__dirname, "../src/notion-rsc.config.ts")
+    join(sourceModulePath, "./src/notion-rsc.config.ts")
   );
   writeFileSync(join(cwd(), "/notion-rsc.config.ts"), initialConfig);
 }

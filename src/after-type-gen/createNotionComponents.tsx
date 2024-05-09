@@ -1,5 +1,6 @@
 import { DatabaseParsers, PageParsers } from ".notion-rsc/generatedTypes";
 import { notionData } from ".notion-rsc/notionData";
+import { NotionPageSatisfiesType } from "../types";
 import { getDatabaseTypeName, getPageTypeName } from "../utils";
 import { createDatabaseComponent } from "./createDatabaseComponent";
 import { createPageComponent } from "./createPageComponent";
@@ -12,7 +13,9 @@ export function createNotionComponents(parsers?: {
   return {
     pages: Object.fromEntries(
       Object.entries(notionData.pages).map(([pageId, pageData]) => {
-        const pageTypeName = getPageTypeName(pageData);
+        const pageTypeName = getPageTypeName(
+          pageData as TypeOrNotionPageSatisfiesType<typeof pageData>
+        );
         return [
           pageTypeName,
           createPageComponent(pageTypeName, parsers?.pages?.[pageTypeName]),
@@ -34,3 +37,8 @@ export function createNotionComponents(parsers?: {
     ) as Record<keyof DatabaseParsers, () => React.ReactNode>,
   };
 }
+
+// TODO: is it possible to get rid of this monstruosity?
+type TypeOrNotionPageSatisfiesType<T> = T extends unknown
+  ? NotionPageSatisfiesType
+  : T;

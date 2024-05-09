@@ -10,8 +10,8 @@ const getPageName = (page: NotionPageSatisfiesType) => {
   return "properties" in page &&
     page.properties.title.type === "title" &&
     page.properties.title.title[0].plain_text
-    ? page.properties.title.title[0].plain_text.replace(/\s/g, "")
-    : page.id;
+    ? page.properties.title.title[0].plain_text.replace(/[\s-]/g, "")
+    : page.id.replace(/-/g, "");
 };
 
 // TODO: can we get rid of this assertion?
@@ -22,6 +22,6 @@ export const getDatabaseTypeName = (
 
 const getDatabaseName = (database: NotionDatabaseSatisfiesType) => {
   return "title" in database.retrieve
-    ? database.retrieve.title[0].plain_text.replace(/\s/g, "")
-    : database.retrieve.id;
+    ? database.retrieve.title[0].plain_text.replace(/[\s-]/g, "")
+    : database.retrieve.id.replace(/-/g, "");
 };
