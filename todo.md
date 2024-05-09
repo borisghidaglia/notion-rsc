@@ -1,9 +1,12 @@
 # Current work
 
 1. [x] Deploy `notion-rsc` v0.0.5
+2. [x] When fetching a page, create a type and a db entry for each inline db encountered inside it.
+3. [x] Display inline db using the default db parser when they appear in a page
 
 ...  
- X. [ ] Change parser terminology to renderer terminology?
+X. [ ] Change parser terminology to renderer terminology?  
+X+1. [ ] ⚠️ Remove the `@notionhq/client` dependency in examples package.json
 
 # Issue?
 
