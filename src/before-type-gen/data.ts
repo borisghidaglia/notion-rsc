@@ -6,6 +6,7 @@ import { format } from "prettier";
 
 import {
   BlockWithChildren,
+  NotionData,
   NotionDatabaseSatisfiesType,
   NotionPageSatisfiesType,
 } from "../types";
@@ -19,7 +20,7 @@ export async function fetchNotionData(
   client: Client,
   pageIds: string[],
   databaseIds: string[]
-) {
+): Promise<NotionData> {
   const { pagesData, databaseIds: databaseIdsFoundInPages } =
     await fetchPagesData(client, pageIds);
   const databasesData = await fetchDatabasesData(

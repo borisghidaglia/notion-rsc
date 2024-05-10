@@ -11,14 +11,20 @@ export type NotionRscConfig = {
   databaseIds: string[];
 };
 
-export type BlockWithChildren = BlockObjectResponse & {
-  children?: BlockWithChildren[];
+export type NotionData = {
+  pages: Record<string, NotionPageSatisfiesType>;
+  databases: Record<string, NotionDatabaseSatisfiesType>;
 };
 
-export type NotionPageSatisfiesType = GetPageResponse & {
-  request_id: string;
-  blocks: BlockWithChildren[];
-};
+export type PageParserParams = Extract<
+  GetPageResponse,
+  { properties: any }
+>["properties"] &
+  NotionRscAdditionalTypes & { content: React.ReactNode };
+
+export type NotionPageSatisfiesType = GetPageResponse &
+  NotionTypeFix_SHOULD_NOT_BE_NECESSARY &
+  NotionRscAdditionalTypes;
 
 export type NotionDatabaseSatisfiesType = {
   query: NotionDatabaseQuerySatisfies;
@@ -29,26 +35,37 @@ type NotionDatabaseQuerySatisfies = OmitOverUnionMembers<
   QueryDatabaseResponse,
   "results"
 > & {
-  results: (QueryDatabaseResponse["results"][number] & {
-    blocks: BlockWithChildren[];
-  })[];
-} & { request_id: string };
+  results: (QueryDatabaseResponse["results"][number] &
+    NotionRscAdditionalTypes)[];
+} & NotionTypeFix_SHOULD_NOT_BE_NECESSARY;
 
 type NotionDatabaseRetrieveSatisfies = OmitOverUnionMembers<
   GetDatabaseResponse,
   "properties"
-> & {
-  request_id: string;
-  properties: Record<
-    string,
-    OmitOverUnionMembers<
-      GetDatabaseResponse["properties"][string],
-      "description"
-    > & {
-      description?: GetDatabaseResponse["properties"][string]["description"];
-    }
-  >;
+> &
+  NotionTypeFix_SHOULD_NOT_BE_NECESSARY & {
+    properties: Record<
+      string,
+      OmitOverUnionMembers<
+        GetDatabaseResponse["properties"][string],
+        "description"
+      > & {
+        description?: GetDatabaseResponse["properties"][string]["description"];
+      }
+    >;
+  };
+
+export type BlockWithChildren = BlockObjectResponse & {
+  children?: BlockWithChildren[];
 };
+
+// Data notion-rsc adds alongside notion data
+type NotionRscAdditionalTypes = {
+  blocks: (BlockObjectResponse & { children?: BlockObjectResponse[] })[];
+};
+
+// https://github.com/makenotion/notion-sdk-js/issues/505
+type NotionTypeFix_SHOULD_NOT_BE_NECESSARY = { request_id: string };
 
 type OmitOverUnionMembers<T, K extends keyof T> = T extends T
   ? Omit<T, K>

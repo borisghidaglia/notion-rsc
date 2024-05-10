@@ -1,7 +1,9 @@
 #!/usr/bin/env node --no-deprecation
 // TODO: remove --no-deprecation when punycode warning is fixed
 
+import { execSync } from "child_process";
 import { Command } from "commander";
+import * as dotenv from "dotenv";
 import {
   existsSync,
   mkdirSync,
@@ -12,8 +14,6 @@ import {
 import { join } from "path";
 import { cwd } from "process";
 
-import { execSync } from "child_process";
-import * as dotenv from "dotenv";
 import { createSchema } from "./createSchema";
 
 export const dotNotionRscUserPath = join(cwd(), "./node_modules/.notion-rsc/");

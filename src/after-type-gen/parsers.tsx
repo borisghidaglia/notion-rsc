@@ -63,7 +63,7 @@ export const defaultNotionBlocksParser = (
     verbose: boolean
   ) => React.ReactNode = defaultNotionBlockParser,
   verbose: boolean = false
-) => {
+): React.ReactNode => {
   const parsedBlocks: React.ReactNode[] = [];
   const typesToGroup = ["numbered_list_item", "bulleted_list_item"] as const;
   type GroupedBlock = Extract<
