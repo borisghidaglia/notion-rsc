@@ -1,4 +1,4 @@
-import { PageParsers } from ".notion-rsc/generatedTypes";
+import { DatabaseParsers, PageParsers } from ".notion-rsc/generatedTypes";
 import { notionData } from ".notion-rsc/notionData";
 import { NotionData, PageParserParams } from "../types";
 import { getPageTypeName } from "../utils";
@@ -13,19 +13,27 @@ import { defaultNotionBlocksParser, defaultParser } from "./parsers";
 // could be possible.
 export function createPageComponent<T extends keyof PageParsers>(
   pageTypeName: T,
-  parser?: PageParsers[T]
+  pageParser?: PageParsers[T],
+  databaseParsers?: DatabaseParsers
 ): () => React.ReactNode {
   return _createPageComponents(
     notionData as NotionData,
     pageTypeName,
-    parser as unknown as (page: PageParserParams) => React.ReactNode
+    pageParser?.pageParser as unknown as (
+      page: PageParserParams
+    ) => React.ReactNode,
+    Object.assign(
+      databaseParsers || {},
+      pageParser?.databaseParsers
+    ) as DatabaseParsers
   );
 }
 
 function _createPageComponents(
   data: NotionData,
   pageTypeName: string,
-  parser?: (page: PageParserParams) => React.ReactNode
+  pageParser?: (page: PageParserParams) => React.ReactNode,
+  databaseParsers?: DatabaseParsers
 ) {
   const page = Object.entries(data.pages).find(
     ([_pageId, _]) => getPageTypeName(data.pages[_pageId]) === pageTypeName
@@ -36,12 +44,12 @@ function _createPageComponents(
       `Page ${pageTypeName} does not exist on notionData. Did you run "npx notion-rsc sync" ?`
     );
 
-  const _parser = parser ?? defaultParser;
+  const _parser = pageParser ?? defaultParser;
 
   return () =>
     _parser({
       ...("properties" in page ? page.properties : {}),
-      content: defaultNotionBlocksParser(page.blocks),
+      content: defaultNotionBlocksParser(page.blocks, databaseParsers),
       blocks: page.blocks,
     } as PageParserParams);
 }

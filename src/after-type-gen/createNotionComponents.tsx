@@ -18,7 +18,11 @@ export function createNotionComponents(parsers?: {
         );
         return [
           pageTypeName,
-          createPageComponent(pageTypeName, parsers?.pages?.[pageTypeName]),
+          createPageComponent(
+            pageTypeName,
+            parsers?.pages?.[pageTypeName],
+            parsers?.databases
+          ),
         ];
       })
     ) as Record<keyof PageParsers, () => React.ReactNode>,

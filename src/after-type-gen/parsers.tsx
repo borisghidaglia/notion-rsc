@@ -5,12 +5,16 @@ import {
   PageObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { join } from "path";
+import { hash } from "crypto";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
+import { join, parse } from "path";
 import { Fragment } from "react";
 
+import { DatabaseParsers } from ".notion-rsc/generatedTypes";
 import { notionData } from ".notion-rsc/notionData";
 import { BlockWithChildren, NotionDatabaseSatisfiesType } from "../types";
+import { getDatabaseTypeName } from "../utils";
+import { createDatabaseComponent } from "./createDatabaseComponent";
 
 export function defaultParser<T extends { blocks: BlockWithChildren[] }>({
   blocks,
@@ -58,10 +62,7 @@ export function defaultDatabaseParser(
 
 export const defaultNotionBlocksParser = (
   blocks: BlockWithChildren[],
-  blockParser: (
-    block: Block,
-    verbose: boolean
-  ) => React.ReactNode = defaultNotionBlockParser,
+  databaseParsers?: DatabaseParsers,
   verbose: boolean = false
 ): React.ReactNode => {
   const parsedBlocks: React.ReactNode[] = [];
@@ -88,11 +89,12 @@ export const defaultNotionBlocksParser = (
 
     if (groupBlock.length > 0) {
       parsedBlocks.push(
-        blockParser(
+        defaultNotionBlockParser(
           {
             groupType: groupBlock[0].type,
             groupedBlocks: groupBlock,
           },
+          databaseParsers,
           verbose
         )
       );
@@ -100,16 +102,19 @@ export const defaultNotionBlocksParser = (
       lastTypeSeen = undefined;
     }
 
-    parsedBlocks.push(blockParser(block, verbose));
+    parsedBlocks.push(
+      defaultNotionBlockParser(block, databaseParsers, verbose)
+    );
   }
 
   if (groupBlock.length > 0) {
     parsedBlocks.push(
-      blockParser(
+      defaultNotionBlockParser(
         {
           groupType: groupBlock[0].type,
           groupedBlocks: groupBlock,
         },
+        databaseParsers,
         verbose
       )
     );
@@ -117,18 +122,26 @@ export const defaultNotionBlocksParser = (
   return parsedBlocks;
 };
 
-export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
+export const defaultNotionBlockParser = (
+  block: Block,
+  databaseParsers?: DatabaseParsers,
+  verbose?: boolean
+) => {
   if ("groupType" in block) {
     if (block.groupType === "numbered_list_item")
       return (
         <ol key={block.groupedBlocks.map((b) => b.id).join("-")}>
-          {block.groupedBlocks.map((b) => defaultNotionBlockParser(b, verbose))}
+          {block.groupedBlocks.map((b) =>
+            defaultNotionBlockParser(b, databaseParsers, verbose)
+          )}
         </ol>
       );
     if (block.groupType === "bulleted_list_item")
       return (
         <ul key={block.groupedBlocks.map((b) => b.id).join("-")}>
-          {block.groupedBlocks.map((b) => defaultNotionBlockParser(b, verbose))}
+          {block.groupedBlocks.map((b) =>
+            defaultNotionBlockParser(b, databaseParsers, verbose)
+          )}
         </ul>
       );
     return verbose ? (
@@ -217,7 +230,12 @@ export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
       throw new Error(
         `Database ${block.id} not found in notionData. Did you run "npx notion-rsc sync"`
       );
-    return defaultDatabaseParser(db.query.results);
+    const dbTypeName = getDatabaseTypeName(db);
+    const specificDbParser = databaseParsers?.[dbTypeName];
+
+    return specificDbParser
+      ? createDatabaseComponent(dbTypeName, specificDbParser)()
+      : defaultDatabaseParser(db.query.results);
   }
   return verbose ? (
     <div style={{ backgroundColor: "darkred", margin: "10px 0px 10px 0px" }}>
@@ -226,7 +244,7 @@ export const defaultNotionBlockParser = (block: Block, verbose: boolean) => {
   ) : undefined;
 };
 
-const parseRichTextArray = (rta: RichTextItemResponse[]) =>
+export const parseRichTextArray = (rta: RichTextItemResponse[]) =>
   rta.map((rt) => (
     <Fragment key={crypto.randomUUID()}>{parseRichText(rt)}</Fragment>
   ));
@@ -254,30 +272,45 @@ const parseRichText = (rt: RichTextItemResponse) => {
   );
 };
 
-const LocalImage = async ({
+function getFullFileName(dir: string, baseName: string) {
+  if (!existsSync(dir)) return;
+  const files = readdirSync(dir);
+  for (const file of files) {
+    if (parse(file).base === baseName) return parse(file).base;
+  }
+}
+
+export const LocalImage = async ({
   url,
   notionPublicFolder = `${process.cwd()}/public/notion-files`,
 }: {
   url: string;
   notionPublicFolder?: string;
 }) => {
-  const _url = new URL(url);
-  const pathName = _url.pathname;
-  const fileName = pathName.split("/")[pathName.split("/").length - 1];
-  const localPath = join(notionPublicFolder, fileName);
+  const fileName = hash("sha256", url);
+
   // TODO
   // Check if remote and local file are the same.
   // Here we might miss a new file to download just because they have the same name
   // TODO
   // Find a way to fill alt attr. Maybe using Notion captions?
-  if (existsSync(localPath))
-    return <img key={url} src={join("/notion-files", fileName)} alt="" />;
+  const knownFileName = getFullFileName(notionPublicFolder, fileName);
+  if (knownFileName !== undefined) {
+    return <img key={url} src={`/notion-files/${knownFileName}`} alt="" />;
+  }
+
   const res = await fetch(url);
+
+  const contentType = res.headers.get("content-type");
+  const type = contentType ? contentType.split("/")[1] : "jpg"; // Default to jpg if not available
+  const fullFileName = `${fileName}.${type}`;
+
   if (!existsSync(notionPublicFolder)) {
     mkdirSync(notionPublicFolder, { recursive: true });
   }
+  const localPath = join(notionPublicFolder, fullFileName);
   writeFileSync(localPath, new Uint8Array(await res.arrayBuffer()));
-  return <img key={url} src={join("/notion-files", fileName)} alt="" />;
+  return <img key={url} src={`/notion-files/${fullFileName}`} alt="" />;
 };
 
 const CodeComponent = async ({

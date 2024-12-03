@@ -48,7 +48,23 @@ export async function createSchema() {
   for (const id of Object.keys(notionData.pages)) {
     const page = notionData.pages[id];
     const pageName = getPageTypeName(page);
-    tsCodeStr.push(`${pageName}?: (page: ${pageName}) => React.ReactNode;`);
+    const databasesInPage = Object.entries(notionData.databases)
+      .filter(
+        ([dbId, dbData]) =>
+          "parent" in dbData.retrieve &&
+          dbData.retrieve.parent.type === "page_id" &&
+          dbData.retrieve.parent.page_id.replace(/-/g, "") === id
+      )
+      ?.map(([dbId, dbData]) => dbId);
+    let databasesStr = "{";
+    for (const id of databasesInPage) {
+      const databaseName = getDatabaseTypeName(notionData.databases[id]);
+      databasesStr += `${databaseName}?: (entries: ${databaseName}[]) => React.ReactNode;`;
+    }
+    databasesStr += "}";
+    tsCodeStr.push(
+      `${pageName}?: { pageParser: (page: ${pageName}) => React.ReactNode, databaseParsers?: ${databasesStr} }`
+    );
   }
   tsCodeStr.push(`};\n\n`);
   tsCodeStr.push(`export type DatabaseParsers = {`);
