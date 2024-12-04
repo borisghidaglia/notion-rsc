@@ -1,6 +1,6 @@
 import { DatabaseParsers, PageParsers } from ".notion-rsc/generatedTypes";
 import { notionData } from ".notion-rsc/notionData";
-import { NotionPageSatisfiesType } from "../types";
+import { NotionDatabaseSatisfiesType, NotionPageSatisfiesType } from "../types";
 import { getDatabaseTypeName, getPageTypeName } from "../utils";
 import { createDatabaseComponent } from "./createDatabaseComponent";
 import { createPageComponent } from "./createPageComponent";
@@ -27,18 +27,25 @@ export function createNotionComponents(parsers?: {
       })
     ) as Record<keyof PageParsers, () => React.ReactNode>,
 
-    databases: Object.fromEntries(
-      Object.entries(notionData.databases).map(([databaseId, databaseData]) => {
-        const databaseTypeName = getDatabaseTypeName(databaseData);
-        return [
-          databaseTypeName,
-          createDatabaseComponent(
-            databaseTypeName,
-            parsers?.databases?.[databaseTypeName]
-          ),
-        ];
-      })
-    ) as Record<keyof DatabaseParsers, () => React.ReactNode>,
+    databases:
+      Object.keys(notionData.databases).length === 0
+        ? null
+        : (Object.fromEntries(
+            Object.entries(notionData.databases).map(
+              ([databaseId, databaseData]) => {
+                const databaseTypeName = getDatabaseTypeName(
+                  databaseData as NotionDatabaseSatisfiesType
+                );
+                return [
+                  databaseTypeName,
+                  createDatabaseComponent(
+                    databaseTypeName,
+                    parsers?.databases?.[databaseTypeName]
+                  ),
+                ];
+              }
+            )
+          ) as Record<keyof DatabaseParsers, () => React.ReactNode>),
   };
 }
 

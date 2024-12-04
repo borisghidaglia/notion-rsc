@@ -82,7 +82,6 @@ program
     // in the .d.ts generated files
     console.log("Rebuilding module...");
     execSync("npm run build", { cwd: join(__dirname, "../../") });
-
     console.log("Everything done ✅");
   });
 

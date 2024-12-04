@@ -222,10 +222,14 @@ export const defaultNotionBlockParser = (
     }
   }
   if (block.type === "child_database") {
-    const db =
-      notionData.databases[
-        block.id.replace(/[\s-]/g, "") as keyof typeof notionData.databases
-      ];
+    console.log({
+      nd: notionData.databases,
+      id: block.id.replace(/[\s-]/g, ""),
+    });
+
+    const db = notionData.databases[
+      block.id.replace(/[\s-]/g, "") as keyof typeof notionData.databases
+    ] as NotionDatabaseSatisfiesType | undefined;
     if (!db)
       throw new Error(
         `Database ${block.id} not found in notionData. Did you run "npx notion-rsc sync"`

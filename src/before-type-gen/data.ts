@@ -1,4 +1,9 @@
-import { Client, isFullBlock, iteratePaginatedAPI } from "@notionhq/client";
+import {
+  Client,
+  isFullBlock,
+  isFullPage,
+  iteratePaginatedAPI,
+} from "@notionhq/client";
 import { execSync } from "child_process";
 import { writeFileSync } from "fs";
 import { join } from "path";
@@ -21,13 +26,23 @@ export async function fetchNotionData(
   pageIds: string[],
   databaseIds: string[]
 ): Promise<NotionData> {
-  const { pagesData, databaseIds: databaseIdsFoundInPages } =
-    await fetchPagesData(client, pageIds);
-  const databasesData = await fetchDatabasesData(
-    client,
-    databaseIds.concat(databaseIdsFoundInPages)
-  );
-  const data = { pages: pagesData, databases: databasesData };
+  let pageIdsLoop = pageIds;
+  let allPagesData = {};
+  let allDatabasesData = {};
+  while (pageIdsLoop.length > 0) {
+    const { pagesData, databaseIds: databaseIdsFoundInPages } =
+      await fetchPagesData(client, pageIdsLoop);
+    const { data: databasesData, pages: newPagesDiscovered } =
+      await fetchDatabasesData(
+        client,
+        databaseIds.concat(databaseIdsFoundInPages)
+      );
+    pageIdsLoop = newPagesDiscovered;
+    allPagesData = { ...allPagesData, ...pagesData };
+    allDatabasesData = { ...allDatabasesData, ...databasesData };
+  }
+
+  const data = { pages: allPagesData, databases: allDatabasesData };
   const notionDataStr = `
     import { NotionDatabaseSatisfiesType, NotionPageSatisfiesType } from ".notion-rsc/types";
 
@@ -96,6 +111,7 @@ async function fetchPagesData(client: Client, ids: string[]) {
 
 async function fetchDatabasesData(client: Client, ids: string[]) {
   const data: Record<string, NotionDatabaseSatisfiesType> = {};
+  const newPagesDiscovered = [];
   for (const id of ids) {
     console.log(`Fetching database ${id}...`);
     // Today QueryDatabaseResponse (which the query function returns) is
@@ -109,6 +125,9 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
     const resultsWithBlocks: NotionDatabaseSatisfiesType["query"]["results"] =
       [];
     for (const res of queryDbResponse.results) {
+      console.log(res);
+      if (isFullPage(res) && "title" in res.properties)
+        newPagesDiscovered.push(res.id);
       const blocks = await getBlocksRecursively(client, res.id);
       resultsWithBlocks.push({ ...res, blocks });
     }
@@ -124,7 +143,7 @@ async function fetchDatabasesData(client: Client, ids: string[]) {
       })) as NotionDatabaseSatisfiesType["retrieve"],
     };
   }
-  return data;
+  return { data, pages: newPagesDiscovered };
 }
 
 async function getBlocksRecursively(client: Client, blockId: string) {

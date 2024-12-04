@@ -7,6 +7,8 @@ export const getPageTypeName = (
 ): keyof PageParsers => `Page${getPageName(page)}` as keyof PageParsers;
 
 const getPageName = (page: NotionPageSatisfiesType) => {
+  // console.log(page.properties as any);
+
   return "properties" in page &&
     page.properties.title.type === "title" &&
     page.properties.title.title[0].plain_text
